@@ -3,35 +3,23 @@ import sys
 from logging.config import fileConfig
 
 from alembic import context
-from dotenv import load_dotenv, dotenv_values
-from sqlalchemy import engine_from_config
+from dotenv import dotenv_values,load_dotenv
 
-from entity.db import Base, build_sync_db_url
-import models
+from sqlalchemy import engine_from_config, pool
 
-import alembic_autogenerate_enums
+import src.database.models
+
+from src.database.db import Base
 
 sys.path.append(os.getcwd())
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
+
 config = context.config
 
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
 target_metadata = Base.metadata
 
 load_dotenv()
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
 
 
 def run_migrations_offline():
@@ -62,7 +50,8 @@ def run_migrations_online():
     """
     connectable = engine_from_config(
         config.get_section(config.config_ini_section),
-        prefix='sqlalchemy.')
+        prefix='sqlalchemy.',
+        poolclass=pool.NullPool)
 
     with connectable.connect() as connection:
         context.configure(
@@ -74,8 +63,9 @@ def run_migrations_online():
         with context.begin_transaction():
             context.run_migrations()
 
+
 env = dotenv_values('.env')
-config.set_main_option('sqlalchemy.url',  build_sync_db_url())
+config.set_main_option('sqlalchemy.url',  os.environ.get('DATABASE_URL'))
 
 if context.is_offline_mode():
     run_migrations_offline()
