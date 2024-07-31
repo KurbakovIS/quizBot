@@ -40,18 +40,22 @@ class AdminAuthentication(AuthenticationBackend):
 
 class UserAdmin(ModelView, model=User):
     column_list = [User.id, User.username, User.current_stage]
+    form_columns = ["username", "password", "current_stage"]
 
 
 class ProductAdmin(ModelView, model=Product):
     column_list = [Product.id, Product.name, Product.price, Product.quantity]
+    form_columns = ["name", "price", "quantity"]
 
 
 class QuestionAdmin(ModelView, model=Question):
     column_list = [Question.id, Question.stage_id, Question.text, Question.hint, Question.reward]
+    form_columns = ["stage_id", "text", "hint", "reward"]
 
 
 class AdminAdmin(ModelView, model=AdminModel):
     column_list = [AdminModel.id, AdminModel.username]
+    form_columns = ["username", "password"]
 
 
 def create_admin_app(app: FastAPI):

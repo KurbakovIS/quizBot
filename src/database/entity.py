@@ -1,7 +1,7 @@
 import datetime
 import uuid
 
-import sqlalchemy as sa
+from sqlalchemy import DateTime,func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -19,18 +19,16 @@ class BaseEntity(Base):
     )
 
     created_at: Mapped[datetime.datetime] = mapped_column(
-        sa.DateTime(timezone=True),
+        DateTime(timezone=True),
         nullable=False,
-        default=sa.func.current_timestamp(),
-        server_default=sa.func.now(),
+        server_default=func.now(),
         comment="Дата создания",
     )
 
     updated_at: Mapped[datetime.datetime] = mapped_column(
-        sa.DateTime(timezone=True),
+        DateTime(timezone=True),
         nullable=False,
-        default=sa.func.current_timestamp(),
-        server_default=sa.func.now(),
-        onupdate=sa.func.current_timestamp(),
+        server_default=func.now(),
+        onupdate=func.current_timestamp(),
         comment="Дата обновления",
     )
