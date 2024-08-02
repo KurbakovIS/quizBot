@@ -1,18 +1,21 @@
+import io
+
 from fastapi import FastAPI
 from passlib.context import CryptContext
 from sqladmin import Admin, ModelView
 from sqladmin.authentication import AuthenticationBackend
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.sql import text
+from sqlalchemy.ext.asyncio import create_async_engine
 from starlette.requests import Request
 
-from src.database.models import User, Product, Question, Admin as AdminModel
+from src.database.models import User, Product, Question, Admin as AdminModel, Level
+from src.database.repository import Repository
+from src.database.uow import UnitOfWork
+from src.utils.settings import DATABASE_URL
+from wtforms import FileField
+from wtforms.validators import DataRequired
 
-DATABASE_URL = "postgresql+asyncpg://postgres:qwerty@localhost:5432/tg_quiz_bot"
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 engine = create_async_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
 
 
 class AdminAuthentication(AuthenticationBackend):
@@ -21,11 +24,9 @@ class AdminAuthentication(AuthenticationBackend):
         username = form.get("username")
         password = form.get("password")
 
-        async with SessionLocal() as session:
-            query = await session.execute(
-                text("SELECT * FROM admins WHERE username = :username"), {"username": username}
-            )
-            admin = query.fetchone()
+        async with UnitOfWork() as uow:
+            repo = Repository(uow.session)
+            admin = await repo.get_admin_by_username(username)
             if admin and pwd_context.verify(password, admin.password):
                 request.session.update({"user": username})
                 return True
@@ -39,8 +40,8 @@ class AdminAuthentication(AuthenticationBackend):
 
 
 class UserAdmin(ModelView, model=User):
-    column_list = [User.id, User.username, User.current_stage]
-    form_columns = ["username", "password", "current_stage"]
+    column_list = [User.id, User.username, User.chat_id, User.current_level, User.balance]
+    form_columns = ["username", "chat_id", "current_level", "balance"]
 
 
 class ProductAdmin(ModelView, model=Product):
@@ -48,9 +49,15 @@ class ProductAdmin(ModelView, model=Product):
     form_columns = ["name", "price", "quantity"]
 
 
+class LevelAdmin(ModelView, model=Level):
+    column_list = [Level.id, Level.name, Level.description, Level.intro_text, Level.questions, Level.image_file]
+    form_columns = ["name", "description", "intro_text", "image_file"]
+
+
 class QuestionAdmin(ModelView, model=Question):
-    column_list = [Question.id, Question.stage_id, Question.text, Question.hint, Question.reward]
-    form_columns = ["stage_id", "text", "hint", "reward"]
+    column_list = [Question.id, Question.level, Question.text, Question.hint, Question.correct_answer,
+                   Question.reward, Question.image_file]
+    form_columns = ["level", "text", "hint", "correct_answer", "reward", "image_file"]
 
 
 class AdminAdmin(ModelView, model=AdminModel):
@@ -64,5 +71,6 @@ def create_admin_app(app: FastAPI):
     admin.add_view(UserAdmin)
     admin.add_view(ProductAdmin)
     admin.add_view(QuestionAdmin)
+    admin.add_view(LevelAdmin)
     admin.add_view(AdminAdmin)
     return admin

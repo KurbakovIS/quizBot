@@ -7,7 +7,6 @@ docker-compose
 stress.py
 es_help.py
 fastap.py
-main.py
 cancelling.py
 a.json
 *.pyc

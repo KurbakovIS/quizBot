@@ -25,6 +25,8 @@ pydantic = "^2.8.2"
 pydantic-settings = "^2.3.4"
 bcrypt = "^4.2.0"
 itsdangerous = "^2.2.0"
+loguru = "^0.7.2"
+fastapi-storages = "^0.3.0"
 
 
 [build-system]

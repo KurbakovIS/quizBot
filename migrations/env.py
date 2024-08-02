@@ -65,7 +65,7 @@ def run_migrations_online():
 
 
 env = dotenv_values('.env')
-config.set_main_option('sqlalchemy.url',  os.environ.get('DATABASE_URL'))
+config.set_main_option('sqlalchemy.url',  os.environ.get('DATABASE_URL_MIGRATE'))
 
 if context.is_offline_mode():
     run_migrations_offline()
