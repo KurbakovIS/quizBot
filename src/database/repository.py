@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import insert, update
@@ -13,15 +15,20 @@ class Repository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def create_user(self, username: str, chat_id: str, first_name: str, last_name: str, current_level):
-        stmt = insert(User).values(username=username, chat_id=chat_id, first_name=first_name, last_name=last_name,
-                                   balance=0.0).returning(User)
+    async def create_user(self, username: str, chat_id: str, first_name: str, last_name: str, current_level: uuid.UUID):
+        stmt = insert(User).values(
+            username=username,
+            chat_id=chat_id,
+            first_name=first_name,
+            last_name=last_name,
+            current_level=current_level,
+            balance=0.0
+        ).returning(User)
         result = await self.session.execute(stmt)
-        await self.session.commit()
         return result.scalar_one()
 
     async def get_first_level(self):
-        stmt = select(Level).limit(1)
+        stmt = select(Level).order_by(Level.number).limit(1)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 

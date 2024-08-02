@@ -1,11 +1,13 @@
 import asyncio
+import os
+
 from loguru import logger
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
-
+from aiogram.types import FSInputFile
 from src.database.repository import Repository
 from src.database.uow import UnitOfWork
 
@@ -27,17 +29,25 @@ async def send_welcome(message: types.Message):
     async with UnitOfWork() as uow:
         repo = Repository(uow.session)
         user = await repo.get_user_by_chat_id(str(message.chat.id))
+        level = await repo.get_first_level()
+
         if not user:
-            await repo.create_user(
+            user = await repo.create_user(
                 username=message.from_user.username,
                 chat_id=str(message.chat.id),
                 first_name=message.from_user.first_name,
                 last_name=message.from_user.last_name,
+                current_level=level.id,
             )
 
-        level = await repo.get_first_level()
         welcome_text = level.intro_text if level else "Добро пожаловать в игру!"
-        await message.answer(welcome_text)
+
+        if level and level.image_file:
+            file_path = os.path.abspath(level.image_file)  # Преобразование пути в абсолютный
+            photo = FSInputFile(path=file_path)
+            await message.answer_photo(photo, caption=welcome_text)
+        else:
+            await message.answer(welcome_text)
 
 
 @dp.message(Command('next'))

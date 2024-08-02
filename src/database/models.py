@@ -52,6 +52,7 @@ class Level(BaseEntity):
     __tablename__ = 'levels'
 
     name: Mapped[str] = mapped_column(String)
+    number: Mapped[int] = mapped_column(Integer)
     description: Mapped[str] = mapped_column(Text)
     intro_text: Mapped[str] = mapped_column(Text)
     image_file: Mapped[str] = mapped_column(FileType(), nullable=True)

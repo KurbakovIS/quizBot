@@ -1,5 +1,3 @@
-import io
-
 from fastapi import FastAPI
 from passlib.context import CryptContext
 from sqladmin import Admin, ModelView
@@ -11,8 +9,6 @@ from src.database.models import User, Product, Question, Admin as AdminModel, Le
 from src.database.repository import Repository
 from src.database.uow import UnitOfWork
 from src.utils.settings import DATABASE_URL
-from wtforms import FileField
-from wtforms.validators import DataRequired
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 engine = create_async_engine(DATABASE_URL)
@@ -50,8 +46,9 @@ class ProductAdmin(ModelView, model=Product):
 
 
 class LevelAdmin(ModelView, model=Level):
-    column_list = [Level.id, Level.name, Level.description, Level.intro_text, Level.questions, Level.image_file]
-    form_columns = ["name", "description", "intro_text", "image_file"]
+    column_list = [Level.id, Level.name, Level.description, Level.intro_text, Level.questions, Level.image_file,
+                   Level.number]
+    form_columns = ["name", "description", "intro_text", "image_file", "number"]
 
 
 class QuestionAdmin(ModelView, model=Question):
