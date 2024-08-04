@@ -14,10 +14,10 @@ async def start_bot(message: types.Message, state: FSMContext):
         text = level.intro_text
         await send_level_message(message, level, text)
 
-        await message.answer("нажимай Начать Викторину", reply_markup=types.ReplyKeyboardMarkup(
+        await message.answer("Нажимай Далее для стара Викторины", reply_markup=types.ReplyKeyboardMarkup(
             keyboard=[
                 [
-                    types.KeyboardButton(text="Начать Викторину")
+                    types.KeyboardButton(text="Далее")
                 ]
             ],
             resize_keyboard=True,
@@ -28,24 +28,10 @@ async def start_bot(message: types.Message, state: FSMContext):
 
 
 async def continue_intro(message: types.Message, state: FSMContext):
-    await message.answer("Еще один текстовый блок перед началом игры.", reply_markup=types.ReplyKeyboardMarkup(
-        keyboard=[
-            [
-                types.KeyboardButton(text="Далее")
-            ]
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=True
-    ))
-    await state.set_state(QuizStates.start)
-
-
-async def start_game(message: types.Message, state: FSMContext):
     async with UnitOfWork() as uow:
         repo = Repository(uow.session)
         user = await repo.get_user_by_chat_id(str(message.chat.id))
-        level = await repo.get_first_level()
-
+        level = await repo.get_next_level(1)
         if not user:
             user = await repo.create_user(
                 username=message.from_user.username,
@@ -57,6 +43,24 @@ async def start_game(message: types.Message, state: FSMContext):
         else:
             await repo.update_user_level(user, level.id)
 
+        await message.answer(level.intro_text, reply_markup=types.ReplyKeyboardMarkup(
+            keyboard=[
+                [
+                    types.KeyboardButton(text="Далее")
+                ]
+            ],
+            resize_keyboard=True,
+            one_time_keyboard=True
+        ))
+        await state.set_state(QuizStates.start)
+
+
+async def start_game(message: types.Message, state: FSMContext):
+    async with UnitOfWork() as uow:
+        repo = Repository(uow.session)
+        user = await repo.get_user_by_chat_id(str(message.chat.id))
+        level = await repo.get_level_reward_and_messages(user.current_level)
+
         next_level = level
         while next_level:
             questions = await repo.get_questions_by_level(next_level.id)
@@ -67,6 +71,7 @@ async def start_game(message: types.Message, state: FSMContext):
                 await state.set_state(QuizStates.question)
                 return
             next_level = await repo.get_next_level(next_level.number)
+            await repo.update_user_level(user, next_level.id)
 
         await message.answer("Нет доступных вопросов на данный момент.", reply_markup=types.ReplyKeyboardRemove())
         await state.clear()

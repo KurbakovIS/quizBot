@@ -13,7 +13,7 @@ router.message.register(start_bot, CommandStart())
 # router.message.register(start_bot, Command(commands=['start']))
 
 # Регистрация обработчика текстового события "Далее" в состоянии QuizStates.intro
-router.message.register(continue_intro, StateFilter(QuizStates.intro), F.text == "Начать Викторину")
+router.message.register(continue_intro, StateFilter(QuizStates.intro), F.text == "Далее")
 
 # Регистрация обработчика текстового события "Далее" в состоянии QuizStates.start
 router.message.register(start_game, StateFilter(QuizStates.start), F.text == "Далее")
