@@ -103,7 +103,7 @@ class UserState(BaseEntity):
     __tablename__ = 'user_states'
 
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('users.id'))
-    state: Mapped[str] = mapped_column(String)
+    state: Mapped[str] = mapped_column(String, nullable=True)
     data: Mapped[dict] = mapped_column(JSONB, nullable=True)
 
     __table_args__ = (
