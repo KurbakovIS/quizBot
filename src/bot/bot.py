@@ -1,4 +1,3 @@
-import asyncio
 from loguru import logger
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -16,10 +15,7 @@ dp = Dispatcher(storage=storage)
 dp.include_router(router)
 
 
-async def main():
+async def start_bot():
+    logger.info("Starting bot")
     await dp.start_polling(bot)
 
-
-if __name__ == "__main__":
-    logger.info("Starting bot")
-    asyncio.run(main())

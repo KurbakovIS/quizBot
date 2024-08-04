@@ -1,12 +1,11 @@
 import os
-
 from aiogram.types import FSInputFile
 from loguru import logger
 
 
 async def send_level_message(message, level, text):
     if level and level.image_file:
-        file_path = os.path.abspath(level.image_file)  # Convert the path to an absolute path
+        file_path = os.path.abspath(level.image_file)
         if os.path.exists(file_path) and os.path.isfile(file_path):
             photo = FSInputFile(path=file_path)
             try:

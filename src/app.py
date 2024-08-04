@@ -1,6 +1,25 @@
+import asyncio
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
 from src.admin.admin import create_admin_app
-app = FastAPI()
+from src.bot.bot import start_bot
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Запуск бота при старте приложения
+    bot_task = asyncio.create_task(start_bot())
+    yield
+    # Остановка бота при завершении приложения
+    bot_task.cancel()
+    try:
+        await bot_task
+    except asyncio.CancelledError:
+        pass
+
+
+app = FastAPI(lifespan=lifespan)
 
 create_admin_app(app)

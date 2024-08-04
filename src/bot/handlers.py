@@ -10,8 +10,6 @@ router = Router()
 # Регистрация обработчика команды /start
 router.message.register(start_bot, CommandStart())
 
-# router.message.register(start_bot, Command(commands=['start']))
-
 # Регистрация обработчика текстового события "Далее" в состоянии QuizStates.intro
 router.message.register(continue_intro, StateFilter(QuizStates.intro), F.text == "Далее")
 
@@ -20,5 +18,3 @@ router.message.register(start_game, StateFilter(QuizStates.start), F.text == "Д
 
 # Регистрация обработчика ответов на вопросы в состоянии QuizStates.question
 router.message.register(handle_answer, StateFilter(QuizStates.question))
-
-

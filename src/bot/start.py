@@ -14,7 +14,7 @@ async def start_bot(message: types.Message, state: FSMContext):
         text = level.intro_text
         await send_level_message(message, level, text)
 
-        await message.answer("Нажимай Далее для стара Викторины", reply_markup=types.ReplyKeyboardMarkup(
+        await message.answer("Нажимай Далее для старта Викторины", reply_markup=types.ReplyKeyboardMarkup(
             keyboard=[
                 [
                     types.KeyboardButton(text="Далее")
