@@ -2,7 +2,7 @@ from loguru import logger
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 
-from src.bot.handlers import router
+from src.bot.handlers.handlers import router
 
 API_TOKEN = '6939810787:AAFU363xcu1aVMUlbVcLMH_Awidr3R9RdR8'
 

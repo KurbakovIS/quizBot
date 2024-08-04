@@ -1,7 +1,10 @@
 from aiogram import Router, F
-from aiogram.filters import Command
 from aiogram.filters.state import StateFilter
-from src.bot.start import start_bot, continue_intro, start_game, handle_answer
+
+from src.bot.handlers.answer import handle_answer
+from src.bot.handlers.game import start_game
+from src.bot.handlers.intro import continue_intro
+from src.bot.start import start_bot
 from src.bot.states import QuizStates
 from aiogram.filters import CommandStart
 
