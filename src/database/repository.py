@@ -1,8 +1,7 @@
 import uuid
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.database.models import User, Product, Question, Level
-
+from src.database.models import User, Question, Level
 
 class Repository:
     def __init__(self, session: AsyncSession):
@@ -37,9 +36,14 @@ class Repository:
         result = await self.session.execute(select(Question).where(Question.id == question_id))
         return result.scalar_one_or_none()
 
-    async def get_next_level(self, current_level_number: int):
+    async def get_next_level(self, current_level_id: uuid.UUID):
+        current_level = await self.get_level_by_id(current_level_id)
         result = await self.session.execute(
-            select(Level).where(Level.number > current_level_number).order_by(Level.number.asc()).limit(1))
+            select(Level).where(Level.number > current_level.number).order_by(Level.number.asc()).limit(1))
+        return result.scalar_one_or_none()
+
+    async def get_level_by_id(self, level_id: uuid.UUID):
+        result = await self.session.execute(select(Level).where(Level.id == level_id))
         return result.scalar_one_or_none()
 
     async def update_user_balance(self, user: User, reward: int):
@@ -52,10 +56,6 @@ class Repository:
         if level:
             return level.reward
         return None
-
-    async def get_incorrect_message(self, level_id: uuid.UUID):
-        result = await self.session.execute(select(Level.incorrect_answer_text).where(Level.id == level_id))
-        return result.scalar_one_or_none()
 
     async def update_user_level(self, user: User, level_id: uuid.UUID):
         user.current_level = level_id

@@ -38,7 +38,7 @@ class Question(BaseEntity):
 
     level_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('levels.id'))
     text: Mapped[str] = mapped_column(Text)
-    hint: Mapped[str] = mapped_column(Text)
+    hint: Mapped[str] = mapped_column(Text, nullable=True)
     correct_answer: Mapped[str] = mapped_column(Text)
     image_file: Mapped[str] = mapped_column(FileType(), nullable=True)
     level = relationship('Level', back_populates='questions')
@@ -52,10 +52,10 @@ class Level(BaseEntity):
 
     name: Mapped[str] = mapped_column(String)
     number: Mapped[int] = mapped_column(Integer, unique=True)
-    description: Mapped[str] = mapped_column(Text)
-    intro_text: Mapped[str] = mapped_column(Text)
-    reward: Mapped[int] = mapped_column(Integer, nullable=True
-                                        )
+    description: Mapped[str] = mapped_column(Text, nullable=True)
+    intro_text: Mapped[str] = mapped_column(Text, nullable=True)
+    reward: Mapped[int] = mapped_column(Integer, nullable=True)
+    is_intro: Mapped[bool] = mapped_column(Boolean, default=False)
     image_file: Mapped[str] = mapped_column(FileType(), nullable=True)
     questions = relationship('Question', back_populates='level')
     completed_users = relationship('User', secondary='user_levels', back_populates='completed_levels')
