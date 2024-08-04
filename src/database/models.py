@@ -1,9 +1,10 @@
 import uuid
 
-from sqlalchemy import Integer, String, Boolean, ForeignKey, Float, Text
+from sqlalchemy import Integer, String, Boolean, ForeignKey, Float, Text, UniqueConstraint
 from sqlalchemy.orm import relationship, mapped_column, Mapped
 from sqlalchemy.dialects.postgresql import UUID
 from passlib.context import CryptContext
+from sqlalchemy.dialects.postgresql import JSONB
 
 from src.database.custom_types import FileType
 from src.database.entity import BaseEntity
@@ -96,3 +97,15 @@ class Admin(BaseEntity):
 
     def set_password(self, password):
         self.password = pwd_context.hash(password)
+
+
+class UserState(BaseEntity):
+    __tablename__ = 'user_states'
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('users.id'))
+    state: Mapped[str] = mapped_column(String)
+    data: Mapped[dict] = mapped_column(JSONB, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint('user_id', name='uq_user_states_user_id'),
+    )

@@ -1,7 +1,7 @@
 from aiogram import types
 from aiogram.fsm.context import FSMContext
 from src.bot.states import QuizStates
-from src.bot.utils.message_actions import send_level_message
+from src.bot.utils.message_actions import send_message_with_optional_photo
 from src.database.repository import Repository
 from src.database.uow import UnitOfWork
 
@@ -21,12 +21,18 @@ async def start_bot(message: types.Message, state: FSMContext):
                 current_level=level.id,
             )
         else:
-            await repo.update_user_level(user, level.id)
+            user_state = await repo.get_user_state(user.id)
+            if user_state:
+                await state.set_state(user_state.state)
+                await state.update_data(**user_state.data)
+                await message.answer("Восстановлено предыдущее состояние.")
+                return
+            await repo.update_user_level(user.id, level.id)
         await uow.flush()
         await repo.add_user_level_entry(user.id, level.id)
 
         text = level.intro_text
-        await send_level_message(message, level, text)
+        await send_message_with_optional_photo(message, text, level.image_file)
 
         await message.answer("Нажимай Далее для продолжения", reply_markup=types.ReplyKeyboardMarkup(
             keyboard=[
@@ -40,6 +46,7 @@ async def start_bot(message: types.Message, state: FSMContext):
 
         await state.update_data(current_level_id=level.id, intro_levels_completed=0)
         await state.set_state(QuizStates.intro)
+        await repo.update_user_state(user.id, QuizStates.intro.state, await state.get_data())
         await uow.commit()
 
 
@@ -53,19 +60,14 @@ async def continue_intro(message: types.Message, state: FSMContext):
 
         next_level = await repo.get_next_level(current_level_id)
         if next_level and next_level.is_intro:
-            await send_level_message(message, next_level, next_level.intro_text)
+            await send_message_with_optional_photo(message, next_level.intro_text, next_level.image_file)
             await repo.add_user_level_entry(user.id, next_level.id)
             await repo.add_stage_completion(user.id, next_level.id)
-            await repo.update_user_level(user, next_level.id)
+            await repo.update_user_level(user.id, next_level.id)
             await state.update_data(current_level_id=next_level.id, intro_levels_completed=intro_levels_completed + 1)
             await state.set_state(QuizStates.intro)
         else:
             if next_level:
-                await send_level_message(message, next_level, next_level.intro_text)
-                await repo.add_user_level_entry(user.id, next_level.id)
-                await repo.add_stage_completion(user.id, next_level.id)
-                await repo.update_user_level(user, next_level.id)
-                await state.update_data(current_level_id=next_level.id)
                 await message.answer("Викторина начинается. Нажмите 'Далее' для первого вопроса.",
                                      reply_markup=types.ReplyKeyboardMarkup(
                                          keyboard=[
@@ -76,11 +78,16 @@ async def continue_intro(message: types.Message, state: FSMContext):
                                          resize_keyboard=True,
                                          one_time_keyboard=True
                                      ))
+                await repo.add_user_level_entry(user.id, next_level.id)
+                await repo.add_stage_completion(user.id, next_level.id)
+                await repo.update_user_level(user.id, next_level.id)
+                await state.update_data(current_level_id=next_level.id)
                 await state.set_state(QuizStates.start)
             else:
                 await message.answer("Все уровни Intro завершены, но уровни с вопросами не найдены.",
                                      reply_markup=types.ReplyKeyboardRemove())
                 await state.clear()
+        await repo.update_user_state(user.id, await state.get_state(), await state.get_data())
         await uow.commit()
 
 
@@ -94,7 +101,7 @@ async def start_game(message: types.Message, state: FSMContext):
         questions = await repo.get_questions_by_level(current_level_id)
         if questions:
             question = questions[0]
-            await message.answer(question.text)
+            await send_message_with_optional_photo(message, question.text, question.image_file)
             await state.update_data(current_question_id=question.id)
             await repo.add_stage_completion(user.id, current_level_id)
             await state.set_state(QuizStates.question)
@@ -107,6 +114,7 @@ async def start_game(message: types.Message, state: FSMContext):
                 await message.answer("Нет доступных вопросов на данный момент.",
                                      reply_markup=types.ReplyKeyboardRemove())
                 await state.clear()
+        await repo.update_user_state(user.id, await state.get_state(), await state.get_data())
         await uow.commit()
 
 
@@ -122,8 +130,8 @@ async def handle_answer(message: types.Message, state: FSMContext):
 
         if question and message.text.lower() == question.correct_answer.lower():
             reward = await repo.get_level_reward(current_level_id)
-            await repo.update_user_balance(user, reward)
-            await repo.mark_level_completed(user, current_level_id)
+            await repo.update_user_balance(user.id, reward)
+            await repo.mark_level_completed(user.id, current_level_id)
             await message.answer(f"Верно! Вы заработали {reward} points.")
         else:
             await message.answer("Неправильно. Попробуйте снова.")
@@ -136,4 +144,5 @@ async def handle_answer(message: types.Message, state: FSMContext):
         else:
             await message.answer("Все вопросы завершены.", reply_markup=types.ReplyKeyboardRemove())
             await state.clear()
+        await repo.update_user_state(user.id, await state.get_state(), await state.get_data())
         await uow.commit()
