@@ -1,82 +1,19 @@
 import asyncio
-import os
-
 from loguru import logger
-
-from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command
-from aiogram.fsm.state import State, StatesGroup
+from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import FSInputFile
-from src.database.repository import Repository
-from src.database.uow import UnitOfWork
+
+from src.bot.handlers import router
 
 API_TOKEN = '6939810787:AAFU363xcu1aVMUlbVcLMH_Awidr3R9RdR8'
 
-logger.add("bot.log", rotation="100 MB")
+logger.add("bot.log", rotation="10 MB")
 
 bot = Bot(token=API_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
-
-class QuizStates(StatesGroup):
-    start = State()
-
-
-@dp.message(Command('start'))
-async def send_welcome(message: types.Message):
-    async with UnitOfWork() as uow:
-        repo = Repository(uow.session)
-        user = await repo.get_user_by_chat_id(str(message.chat.id))
-        level = await repo.get_first_level()
-
-        if not user:
-            user = await repo.create_user(
-                username=message.from_user.username,
-                chat_id=str(message.chat.id),
-                first_name=message.from_user.first_name,
-                last_name=message.from_user.last_name,
-                current_level=level.id,
-            )
-
-        welcome_text = level.intro_text if level else "Добро пожаловать в игру!"
-
-        if level and level.image_file:
-            file_path = os.path.abspath(level.image_file)  # Преобразование пути в абсолютный
-            photo = FSInputFile(path=file_path)
-            await message.answer_photo(photo, caption=welcome_text)
-        else:
-            await message.answer(welcome_text)
-
-
-@dp.message(Command('next'))
-async def send_next_message(message: types.Message):
-    async with UnitOfWork() as uow:
-        repo = Repository(uow.session)
-        question = await repo.get_first_question()
-        if question:
-            await message.answer(question.text)
-        else:
-            await message.answer("Больше вопросов нет.")
-
-
-@dp.message()
-async def handle_answer(message: types.Message):
-    async with UnitOfWork() as uow:
-        repo = Repository(uow.session)
-        question = await repo.get_first_question()
-
-        if question and message.text.lower() == question.correct_answer.lower():
-            user = await repo.get_user_by_chat_id(str(message.chat.id))
-            level = await repo.get_first_level()
-            reward, correct_message, incorrect_message = await repo.get_level_reward_and_messages(level.id)
-            await repo.update_user_balance(user, reward)
-            await message.answer(f"{correct_message} Вы заработали {reward} points.")
-        else:
-            level = await repo.get_first_level()
-            _, _, incorrect_message = await repo.get_level_reward_and_messages(level.id)
-            await message.answer(incorrect_message)
+dp.include_router(router)
 
 
 async def main():
