@@ -7,6 +7,21 @@ from src.database.uow import UnitOfWork
 from loguru import logger
 
 
+def get_main_menu():
+    return types.ReplyKeyboardMarkup(
+        keyboard=[
+            [types.KeyboardButton(text="Старт")],
+            [types.KeyboardButton(text="Узнать о Test IT")],
+            [types.KeyboardButton(text="Оставить отзыв")],
+            [types.KeyboardButton(text="Записаться на демо")],
+            [types.KeyboardButton(text="Магазин мерча")],
+            [types.KeyboardButton(text="Подписаться на Test IT")],
+            # [types.KeyboardButton(text="Скрыть меню")]
+        ],
+        resize_keyboard=True
+    )
+
+
 async def start_bot(message: types.Message, state: FSMContext):
     try:
         async with UnitOfWork() as uow:
@@ -27,7 +42,7 @@ async def start_bot(message: types.Message, state: FSMContext):
                 if user_state:
                     await state.set_state(user_state.state)
                     await state.update_data(**user_state.data)
-                    await message.answer("Восстановлено предыдущее состояние.")
+                    await message.answer("Восстановлено предыдущее состояние.", reply_markup=get_main_menu())
 
                     # Получаем актуальное состояние и данные
                     current_state = await state.get_state()
@@ -38,7 +53,7 @@ async def start_bot(message: types.Message, state: FSMContext):
 
                     # Если викторина завершена, отображаем сообщение
                     if quiz_completed:
-                        await message.answer("Все вопросы завершены.", reply_markup=types.ReplyKeyboardRemove())
+                        await message.answer("Все вопросы завершены.", reply_markup=get_main_menu())
                     # Если состояние вопроса, выводим вопрос
                     elif current_state == QuizStates.question.state and current_question_id:
                         question = await repo.get_question_by_id(current_question_id)
