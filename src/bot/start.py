@@ -53,6 +53,7 @@ async def continue_intro(message: types.Message, state: FSMContext):
             one_time_keyboard=True
         ))
         await state.set_state(QuizStates.start)
+        await uow.commit()
 
 
 async def start_game(message: types.Message, state: FSMContext):
@@ -88,11 +89,13 @@ async def handle_answer(message: types.Message, state: FSMContext):
 
         if question and message.text.lower() == question.correct_answer.lower():
             user = await repo.get_user_by_chat_id(str(message.chat.id))
-            reward, correct_message, incorrect_message = await repo.get_level_reward_and_messages(level_id)
+            reward = await repo.get_level_reward_and_messages(level_id)
             await repo.update_user_balance(user, reward)
             await repo.mark_level_completed(user, level_id)
-            await message.answer(f"{correct_message} Вы заработали {reward} points.")
+            await message.answer(f"{question.correct_answer} Вы заработали {reward} points.")
             await state.clear()
         else:
             incorrect_message = question.incorrect_answer
             await message.answer(incorrect_message)
+
+        await uow.commit()

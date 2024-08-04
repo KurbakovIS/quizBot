@@ -23,7 +23,6 @@ class Repository:
             stages_completed=[]
         )
         self.session.add(new_user)
-        await self.session.commit()
         return new_user
 
     async def get_first_level(self):
@@ -46,14 +45,13 @@ class Repository:
     async def update_user_balance(self, user: User, reward: int):
         user.balance += reward
         self.session.add(user)
-        await self.session.commit()
 
     async def get_level_reward_and_messages(self, level_id: uuid.UUID):
         result = await self.session.execute(select(Level).where(Level.id == level_id))
         level = result.scalar_one_or_none()
         if level:
-            return level.reward, level.correct_answer_message, level.incorrect_answer_text
-        return None, None, None
+            return level.reward
+        return None
 
     async def get_incorrect_message(self, level_id: uuid.UUID):
         result = await self.session.execute(select(Level.incorrect_answer_text).where(Level.id == level_id))
@@ -62,9 +60,7 @@ class Repository:
     async def update_user_level(self, user: User, level_id: uuid.UUID):
         user.current_level = level_id
         self.session.add(user)
-        await self.session.commit()
 
     async def mark_level_completed(self, user: User, level_id: uuid.UUID):
         user.stages_completed.append({"level_id": str(level_id), "completed": True})
         self.session.add(user)
-        await self.session.commit()
