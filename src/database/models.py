@@ -53,7 +53,7 @@ class Level(BaseEntity):
     name: Mapped[str] = mapped_column(String)
     number: Mapped[int] = mapped_column(Integer, unique=True)
     description: Mapped[str] = mapped_column(Text, nullable=True)
-    intro_text: Mapped[str] = mapped_column(Text, nullable=True)
+    intro_text: Mapped[str] = mapped_column(Text)
     reward: Mapped[int] = mapped_column(Integer, nullable=True)
     is_intro: Mapped[bool] = mapped_column(Boolean, default=False)
     image_file: Mapped[str] = mapped_column(FileType(), nullable=True)

@@ -5,10 +5,25 @@ from src.bot.utils.message_actions import send_level_message
 from src.database.repository import Repository
 from src.database.uow import UnitOfWork
 
+
 async def start_bot(message: types.Message, state: FSMContext):
     async with UnitOfWork() as uow:
         repo = Repository(uow.session)
+        user = await repo.get_user_by_chat_id(str(message.chat.id))
         level = await repo.get_first_level()
+
+        if not user:
+            user = await repo.create_user(
+                username=message.from_user.username,
+                chat_id=str(message.chat.id),
+                first_name=message.from_user.first_name,
+                last_name=message.from_user.last_name,
+                current_level=level.id,
+            )
+        else:
+            await repo.update_user_level(user, level.id)
+        await uow.flush()
+        await repo.add_user_level_entry(user.id, level.id)
 
         text = level.intro_text
         await send_level_message(message, level, text)
@@ -27,21 +42,29 @@ async def start_bot(message: types.Message, state: FSMContext):
         await state.set_state(QuizStates.intro)
         await uow.commit()
 
+
 async def continue_intro(message: types.Message, state: FSMContext):
     async with UnitOfWork() as uow:
         repo = Repository(uow.session)
         data = await state.get_data()
         current_level_id = data.get('current_level_id')
         intro_levels_completed = data.get('intro_levels_completed')
+        user = await repo.get_user_by_chat_id(str(message.chat.id))
 
         next_level = await repo.get_next_level(current_level_id)
         if next_level and next_level.is_intro:
             await send_level_message(message, next_level, next_level.intro_text)
+            await repo.add_user_level_entry(user.id, next_level.id)
+            await repo.add_stage_completion(user.id, next_level.id)
+            await repo.update_user_level(user, next_level.id)
             await state.update_data(current_level_id=next_level.id, intro_levels_completed=intro_levels_completed + 1)
             await state.set_state(QuizStates.intro)
         else:
             if next_level:
                 await send_level_message(message, next_level, next_level.intro_text)
+                await repo.add_user_level_entry(user.id, next_level.id)
+                await repo.add_stage_completion(user.id, next_level.id)
+                await repo.update_user_level(user, next_level.id)
                 await state.update_data(current_level_id=next_level.id)
                 await message.answer("Викторина начинается. Нажмите 'Далее' для первого вопроса.",
                                      reply_markup=types.ReplyKeyboardMarkup(
@@ -60,17 +83,20 @@ async def continue_intro(message: types.Message, state: FSMContext):
                 await state.clear()
         await uow.commit()
 
+
 async def start_game(message: types.Message, state: FSMContext):
     async with UnitOfWork() as uow:
         repo = Repository(uow.session)
         data = await state.get_data()
         current_level_id = data.get('current_level_id')
+        user = await repo.get_user_by_chat_id(str(message.chat.id))
 
         questions = await repo.get_questions_by_level(current_level_id)
         if questions:
             question = questions[0]
             await message.answer(question.text)
             await state.update_data(current_question_id=question.id)
+            await repo.add_stage_completion(user.id, current_level_id)
             await state.set_state(QuizStates.question)
         else:
             next_level = await repo.get_next_level(current_level_id)
@@ -78,9 +104,11 @@ async def start_game(message: types.Message, state: FSMContext):
                 await state.update_data(current_level_id=next_level.id)
                 await start_game(message, state)
             else:
-                await message.answer("Нет доступных вопросов на данный момент.", reply_markup=types.ReplyKeyboardRemove())
+                await message.answer("Нет доступных вопросов на данный момент.",
+                                     reply_markup=types.ReplyKeyboardRemove())
                 await state.clear()
         await uow.commit()
+
 
 async def handle_answer(message: types.Message, state: FSMContext):
     async with UnitOfWork() as uow:
@@ -88,12 +116,12 @@ async def handle_answer(message: types.Message, state: FSMContext):
         data = await state.get_data()
         question_id = data.get('current_question_id')
         current_level_id = data.get('current_level_id')
+        user = await repo.get_user_by_chat_id(str(message.chat.id))
 
         question = await repo.get_question_by_id(question_id)
 
         if question and message.text.lower() == question.correct_answer.lower():
-            user = await repo.get_user_by_chat_id(str(message.chat.id))
-            reward = await repo.get_level_reward_and_messages(current_level_id)
+            reward = await repo.get_level_reward(current_level_id)
             await repo.update_user_balance(user, reward)
             await repo.mark_level_completed(user, current_level_id)
             await message.answer(f"Верно! Вы заработали {reward} points.")
@@ -102,6 +130,7 @@ async def handle_answer(message: types.Message, state: FSMContext):
 
         next_level = await repo.get_next_level(current_level_id)
         if next_level:
+            await repo.add_user_level_entry(user.id, next_level.id)
             await state.update_data(current_level_id=next_level.id)
             await start_game(message, state)
         else:
