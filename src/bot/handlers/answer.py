@@ -42,7 +42,8 @@ async def handle_answer(message: types.Message, state: FSMContext):
                     await start_game(message, state)
                 else:
                     await message.answer("Все вопросы завершены.", reply_markup=types.ReplyKeyboardRemove())
-                    await state.clear()
+                    await state.update_data(quiz_completed=True)
+                    await state.set_state(QuizStates.completed)
             else:
                 if question.hint:
                     keyboard = types.ReplyKeyboardMarkup(

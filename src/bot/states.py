@@ -5,3 +5,4 @@ class QuizStates(StatesGroup):
     start = State()
     intro = State()
     question = State()
+    completed = State()
