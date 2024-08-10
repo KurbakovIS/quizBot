@@ -17,6 +17,8 @@ async def handle_answer(message: types.Message, state: FSMContext):
     try:
         # Игнорируем команды
         if message.text.startswith('/'):
+            await message.answer(
+                "Команды меню недоступны во время ответа на вопрос. Завершите ответ и попробуйте снова.")
             return
 
         if await is_hint_requested(message, state):

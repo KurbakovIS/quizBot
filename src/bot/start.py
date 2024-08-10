@@ -57,18 +57,22 @@ async def restore_user_state(message: types.Message, state: FSMContext, repo: Re
         question = await repo.get_question_by_id(current_question_id)
         if question:
             await send_message_with_optional_photo(message, question.text, question.image_file)
-    elif current_state == QuizStates.intro.state or current_state == QuizStates.start.state:
+        else:
+            await message.answer("Не удалось загрузить текущий вопрос. Попробуйте снова.")
+    elif current_state in [QuizStates.intro.state, QuizStates.start.state]:
         level = await repo.get_level_by_id(current_level_id)
         if level:
             await send_message_with_optional_photo(message, level.intro_text, level.image_file)
-        await message.answer(
-            "Нажимай Далее для продолжения",
-            reply_markup=types.ReplyKeyboardMarkup(
-                keyboard=[[types.KeyboardButton(text="Далее")]],
-                resize_keyboard=True,
-                one_time_keyboard=True
+            await message.answer(
+                "Нажимай Далее для продолжения",
+                reply_markup=types.ReplyKeyboardMarkup(
+                    keyboard=[[types.KeyboardButton(text="Далее")]],
+                    resize_keyboard=True,
+                    one_time_keyboard=True
+                )
             )
-        )
+        else:
+            await message.answer("Не удалось загрузить текущий уровень. Попробуйте снова.")
     else:
         await message.answer("Восстановлено предыдущее состояние.")
 
