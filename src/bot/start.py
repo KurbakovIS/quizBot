@@ -1,12 +1,12 @@
 from aiogram import types
 from aiogram.fsm.context import FSMContext
+from loguru import logger
 
-from src.bot.handlers.menu.get_main_menu import get_main_menu
+from src.bot.state_machine import InfoCollectionStates
 from src.bot.states import QuizStates
 from src.bot.utils.message_actions import send_message_with_optional_photo
 from src.database.repository import Repository
 from src.database.uow import UnitOfWork
-from loguru import logger
 
 
 async def start_bot(message: types.Message, state: FSMContext):
@@ -57,8 +57,6 @@ async def restore_user_state(message: types.Message, state: FSMContext, repo: Re
         question = await repo.get_question_by_id(current_question_id)
         if question:
             await send_message_with_optional_photo(message, question.text, question.image_file)
-        else:
-            await message.answer("Не удалось загрузить текущий вопрос. Попробуйте снова.")
     elif current_state in [QuizStates.intro.state, QuizStates.start.state]:
         level = await repo.get_level_by_id(current_level_id)
         if level:
@@ -71,10 +69,34 @@ async def restore_user_state(message: types.Message, state: FSMContext, repo: Re
                     one_time_keyboard=True
                 )
             )
-        else:
-            await message.answer("Не удалось загрузить текущий уровень. Попробуйте снова.")
+    elif current_state in [InfoCollectionStates.collecting_name.state,
+                           InfoCollectionStates.collecting_company.state,
+                           InfoCollectionStates.collecting_position.state,
+                           InfoCollectionStates.confirmation.state]:
+        # Если находимся в процессе сбора информации, убираем кнопки
+        user_info = data.get('user_info', {})
+
+        if current_state == InfoCollectionStates.collecting_name.state:
+            await message.answer("Как тебя зовут?", reply_markup=types.ReplyKeyboardRemove())
+        elif current_state == InfoCollectionStates.collecting_company.state:
+            await message.answer("В какой компании ты работаешь?", reply_markup=types.ReplyKeyboardRemove())
+        elif current_state == InfoCollectionStates.collecting_position.state:
+            await message.answer("Какая у тебя должность?", reply_markup=types.ReplyKeyboardRemove())
+        elif current_state == InfoCollectionStates.confirmation.state:
+            info_text = (f"Имя: {user_info.get('name', '')}\n"
+                         f"Компания: {user_info.get('company', '')}\n"
+                         f"Должность: {user_info.get('position', '')}\n"
+                         "Всё верно?")
+            await message.answer(info_text, reply_markup=types.ReplyKeyboardMarkup(
+                keyboard=[
+                    [types.KeyboardButton(text="Да")],
+                    [types.KeyboardButton(text="Нет")]
+                ],
+                resize_keyboard=True,
+                one_time_keyboard=True
+            ))
     else:
-        await message.answer("Восстановлено предыдущее состояние.")
+        await message.answer("Восстановлено предыдущее состояние.", reply_markup=types.ReplyKeyboardRemove())
 
 
 async def start_new_user(message: types.Message, state: FSMContext, repo: Repository, user):

@@ -1,10 +1,10 @@
 import uuid
 
-from sqlalchemy import Integer, String, Boolean, ForeignKey, Float, Text, UniqueConstraint
-from sqlalchemy.orm import relationship, mapped_column, Mapped
-from sqlalchemy.dialects.postgresql import UUID
 from passlib.context import CryptContext
+from sqlalchemy import Integer, String, Boolean, ForeignKey, Float, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship, mapped_column, Mapped
 
 from src.database.custom_types import FileType
 from src.database.entity import BaseEntity
@@ -24,6 +24,9 @@ class User(BaseEntity):
     skipped_levels = relationship('Level', secondary='user_skipped_levels', back_populates='skipped_users')
     stages_completed = relationship('StageCompletion', back_populates='user')
     balance: Mapped[float] = mapped_column(Float, default=0.0)
+
+    company: Mapped[str] = mapped_column(String, nullable=True)
+    position: Mapped[str] = mapped_column(String, nullable=True)
 
 
 class Product(BaseEntity):
@@ -57,6 +60,7 @@ class Level(BaseEntity):
     intro_text: Mapped[str] = mapped_column(Text)
     reward: Mapped[int] = mapped_column(Integer, nullable=True)
     is_intro: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_info_collection: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
     image_file: Mapped[str] = mapped_column(FileType(), nullable=True)
     questions = relationship('Question', back_populates='level')
     completed_users = relationship('User', secondary='user_levels', back_populates='completed_levels')

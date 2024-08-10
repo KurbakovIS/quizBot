@@ -1,12 +1,15 @@
 import re
+
 from aiogram import types
 from aiogram.fsm.context import FSMContext
-from src.bot.handlers.game import start_game
+from loguru import logger
+
+from src.bot.state_machine import InfoCollectionStates
 from src.bot.states import QuizStates
 from src.bot.utils.hint import get_question_from_state, generate_hint_message
+from src.database import Level
 from src.database.repository import Repository
 from src.database.uow import UnitOfWork
-from loguru import logger
 
 
 def normalize_text(text: str) -> str:
@@ -75,16 +78,19 @@ async def handle_correct_answer(message: types.Message, state: FSMContext, repo:
 
         next_level = await repo.get_next_level(current_level_id)
         if next_level:
-            await state.update_data(current_level_id=next_level.id)
-            await message.answer(
-                "Нажмите 'Следующий вопрос' для продолжения или выберите действие из меню.",
-                reply_markup=types.ReplyKeyboardMarkup(
-                    keyboard=[[types.KeyboardButton(text="Следующий вопрос")]],
-                    resize_keyboard=True,
-                    one_time_keyboard=True
+            if next_level.is_info_collection:
+                await start_info_collection_level(message, state, repo, next_level)
+            else:
+                await state.update_data(current_level_id=next_level.id)
+                await message.answer(
+                    "Нажмите 'Следующий вопрос' для продолжения или выберите действие из меню.",
+                    reply_markup=types.ReplyKeyboardMarkup(
+                        keyboard=[[types.KeyboardButton(text="Следующий вопрос")]],
+                        resize_keyboard=True,
+                        one_time_keyboard=True
+                    )
                 )
-            )
-            await state.set_state(QuizStates.intermediate)
+                await state.set_state(QuizStates.intermediate)
         else:
             await complete_quiz(message, state)
     except Exception as e:
@@ -152,3 +158,20 @@ async def handle_hint(message: types.Message, state: FSMContext):
         await message.answer("Произошла ошибка при запросе подсказки. Пожалуйста, попробуйте позже.")
 
 
+async def start_info_collection_level(message: types.Message, state: FSMContext, repo: Repository, level: Level):
+    """
+    Запуск уровня сбора информации. Эта функция задает первый вопрос пользователю и переводит его в состояние сбора информации.
+
+    :param message: Сообщение пользователя, инициирующее начало уровня.
+    :param state: Состояние FSM, используемое для отслеживания процесса сбора информации.
+    :param repo: Репозиторий для работы с базой данных.
+    :param level: Уровень, который обозначен как уровень сбора информации.
+    """
+    # Отправляем первый вопрос для сбора информации: "Как тебя зовут?"
+    await message.answer("Как тебя зовут?")
+
+    # Устанавливаем состояние FSM на первый этап сбора информации
+    await state.set_state(InfoCollectionStates.collecting_name)
+
+    # Сохраняем данные о текущем уровне и инициируем словарь для хранения информации о пользователе
+    await state.update_data(current_level_id=level.id, user_info={})

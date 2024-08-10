@@ -1,10 +1,12 @@
+from aiogram import types
+from aiogram.fsm.context import FSMContext
+
 from src.bot.handlers.game import handle_no_questions_available
 from src.bot.states import QuizStates
 from src.bot.utils.message_actions import send_message_with_optional_photo
 from src.database.repository import Repository
 from src.database.uow import UnitOfWork
-from aiogram import types
-from aiogram.fsm.context import FSMContext
+
 
 async def handle_next_question(message: types.Message, state: FSMContext):
     data = await state.get_data()

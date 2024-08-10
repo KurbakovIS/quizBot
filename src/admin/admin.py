@@ -36,8 +36,9 @@ class AdminAuthentication(AuthenticationBackend):
 
 
 class UserAdmin(ModelView, model=User):
-    column_list = [User.id, User.username, User.chat_id, User.current_level, User.balance]
-    form_columns = ["username", "chat_id", "current_level", "balance"]
+    column_list = [User.id, User.username, User.chat_id, User.current_level, User.first_name, User.balance,
+                   User.company, User.position]
+    form_columns = ["username", "chat_id", "current_level", "balance", "position", "company", "first_name"]
 
 
 class ProductAdmin(ModelView, model=Product):
@@ -47,8 +48,9 @@ class ProductAdmin(ModelView, model=Product):
 
 class LevelAdmin(ModelView, model=Level):
     column_list = [Level.id, Level.name, Level.description, Level.intro_text, Level.questions, Level.image_file,
-                   Level.number, Level.reward, Level.is_intro]
-    form_columns = ["name", "description", "intro_text", "image_file", "number", "reward", "is_intro"]
+                   Level.number, Level.reward, Level.is_intro, Level.is_info_collection]
+    form_columns = ["name", "description", "intro_text", "image_file", "number", "reward", "is_intro",
+                    "is_info_collection"]
 
 
 class QuestionAdmin(ModelView, model=Question):

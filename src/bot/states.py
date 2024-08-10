@@ -7,3 +7,4 @@ class QuizStates(StatesGroup):
     question = State()
     intermediate = State()  # Промежуточное состояние между вопросами
     completed = State()
+    info_collection = State()  # Новое состояние для сбора информаци
