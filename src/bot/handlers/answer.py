@@ -15,6 +15,10 @@ def normalize_text(text: str) -> str:
 
 async def handle_answer(message: types.Message, state: FSMContext):
     try:
+        # Игнорируем команды
+        if message.text.startswith('/'):
+            return
+
         if await is_hint_requested(message, state):
             return
 
@@ -69,9 +73,16 @@ async def handle_correct_answer(message: types.Message, state: FSMContext, repo:
 
         next_level = await repo.get_next_level(current_level_id)
         if next_level:
-            await repo.add_user_level_entry(user.id, next_level.id)
             await state.update_data(current_level_id=next_level.id)
-            await start_game(message, state)
+            await message.answer(
+                "Нажмите 'Следующий вопрос' для продолжения или выберите действие из меню.",
+                reply_markup=types.ReplyKeyboardMarkup(
+                    keyboard=[[types.KeyboardButton(text="Следующий вопрос")]],
+                    resize_keyboard=True,
+                    one_time_keyboard=True
+                )
+            )
+            await state.set_state(QuizStates.intermediate)
         else:
             await complete_quiz(message, state)
     except Exception as e:
@@ -100,7 +111,7 @@ async def handle_incorrect_answer(message: types.Message, state: FSMContext, que
 async def complete_quiz(message: types.Message, state: FSMContext):
     try:
         await message.answer("Все вопросы завершены.", reply_markup=types.ReplyKeyboardRemove())
-        await state.update_data(quiz_completed=True)
+        await state.update_data(quiz_completed=True, current_level_id=None, current_question_id=None)
         await state.set_state(QuizStates.completed)
     except Exception as e:
         logger.error(f"Error completing quiz: {e}")
