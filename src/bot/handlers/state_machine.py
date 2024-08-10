@@ -2,7 +2,7 @@ from aiogram import types
 from aiogram.fsm.context import FSMContext
 from loguru import logger
 
-from src.bot.handlers.answer import complete_quiz, start_info_collection_level
+from src.bot.handlers.answer import complete_quiz, start_info_collection_level, start_object_recognition_level
 from src.bot.handlers.game import start_game
 from src.bot.state_machine import InfoCollectionStates
 from src.bot.utils.skip_message import skip_command
@@ -105,7 +105,14 @@ async def confirm_info(message: types.Message, state: FSMContext):
 
                 if next_level:
                     await state.update_data(current_level_id=next_level.id)
-                    await start_game(message, state)
+
+                    # Проверка типа следующего уровня
+                    if next_level.is_object_recognition:
+                        await start_object_recognition_level(message, state,  next_level)
+                    elif next_level.is_info_collection:
+                        await start_info_collection_level(message, state, repo, next_level)
+                    else:
+                        await start_game(message, state)
                 else:
                     await complete_quiz(message, state)
         else:

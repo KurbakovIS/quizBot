@@ -4,6 +4,7 @@ from aiogram.filters.state import StateFilter
 
 from src.bot.handlers.answer import handle_answer
 from src.bot.handlers.game import start_game
+from src.bot.handlers.handle_object_recognition import handle_object_recognition
 from src.bot.handlers.intro import continue_intro
 from src.bot.handlers.menu.comment import handle_comment
 from src.bot.handlers.menu.demo import handle_demo
@@ -51,13 +52,6 @@ def register_menu_handlers(router: Router):
                             StateFilter(QuizStates.intermediate, QuizStates.completed))
     router.message.register(handle_menu_start, Command("start"),
                             StateFilter(QuizStates.intermediate, QuizStates.completed))
-    # Обработчики текстовых кнопок
-    router.message.register(handle_info, F.text == "Узнать о Test IT", StateFilter(QuizStates.intermediate))
-    router.message.register(handle_comment, F.text == "Оставить отзыв", StateFilter(QuizStates.intermediate))
-    router.message.register(handle_demo, F.text == "Записаться на демо", StateFilter(QuizStates.intermediate))
-    router.message.register(handle_shop, F.text == "Магазин мерча", StateFilter(QuizStates.intermediate))
-    router.message.register(handle_subscribe, F.text == "Подписаться на Test IT", StateFilter(QuizStates.intermediate))
-    router.message.register(handle_menu_start, F.text == "Старт", StateFilter(QuizStates.intermediate))
 
 
 def register_info_collection_handlers(router: Router):
@@ -67,6 +61,14 @@ def register_info_collection_handlers(router: Router):
     router.message.register(confirm_info, InfoCollectionStates.confirmation)
 
 
+def register_object_recognition_handlers(router: Router):
+    router.message.register(handle_object_recognition, StateFilter(QuizStates.object_recognition))
+
+
+def register_handle_next_question(router: Router):
+    router.message.register(handle_next_question, StateFilter(QuizStates.intermediate), F.text == "Следующий вопрос")
+
+
 def register_all_handlers(router: Router):
     register_start_handlers(router)
     register_intro_handlers(router)
@@ -74,11 +76,11 @@ def register_all_handlers(router: Router):
     register_answer_handlers(router)
     register_hint_handlers(router)
     register_menu_handlers(router)
+    register_object_recognition_handlers(router)
 
     register_info_collection_handlers(router)
 
-    # Обработчик для кнопки "Следующий вопрос"
-    router.message.register(handle_next_question, StateFilter(QuizStates.intermediate), F.text == "Следующий вопрос")
+    register_handle_next_question(router)
 
 
 register_all_handlers(router)

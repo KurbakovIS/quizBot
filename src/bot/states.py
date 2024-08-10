@@ -8,3 +8,4 @@ class QuizStates(StatesGroup):
     intermediate = State()  # Промежуточное состояние между вопросами
     completed = State()
     info_collection = State()  # Новое состояние для сбора информаци
+    object_recognition = State()

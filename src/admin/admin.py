@@ -48,9 +48,9 @@ class ProductAdmin(ModelView, model=Product):
 
 class LevelAdmin(ModelView, model=Level):
     column_list = [Level.id, Level.name, Level.description, Level.intro_text, Level.questions, Level.image_file,
-                   Level.number, Level.reward, Level.is_intro, Level.is_info_collection]
+                   Level.number, Level.reward, Level.is_intro, Level.is_info_collection, Level.is_object_recognition]
     form_columns = ["name", "description", "intro_text", "image_file", "number", "reward", "is_intro",
-                    "is_info_collection"]
+                    "is_info_collection", 'is_object_recognition']
 
 
 class QuestionAdmin(ModelView, model=Question):

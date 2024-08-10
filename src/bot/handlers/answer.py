@@ -7,6 +7,7 @@ from loguru import logger
 from src.bot.state_machine import InfoCollectionStates
 from src.bot.states import QuizStates
 from src.bot.utils.hint import get_question_from_state, generate_hint_message
+from src.bot.utils.message_actions import send_message_with_optional_photo
 from src.database import Level
 from src.database.repository import Repository
 from src.database.uow import UnitOfWork
@@ -40,7 +41,7 @@ async def handle_answer(message: types.Message, state: FSMContext):
             correct_answer = normalize_text(question.correct_answer)
 
             if user_answer == correct_answer:
-                await handle_correct_answer(message, state, repo, data, question)
+                await handle_correct_answer(message, state, repo, data)
             else:
                 await handle_incorrect_answer(message, state, question)
 
@@ -65,7 +66,7 @@ async def get_current_question(repo: Repository, data: dict):
     return await repo.get_question_by_id(question_id)
 
 
-async def handle_correct_answer(message: types.Message, state: FSMContext, repo: Repository, data: dict, question):
+async def handle_correct_answer(message: types.Message, state: FSMContext, repo: Repository, data: dict):
     try:
         user = await repo.get_user_by_chat_id(str(message.chat.id))
         current_level_id = data.get('current_level_id')
@@ -78,7 +79,10 @@ async def handle_correct_answer(message: types.Message, state: FSMContext, repo:
 
         next_level = await repo.get_next_level(current_level_id)
         if next_level:
-            if next_level.is_info_collection:
+            if next_level.is_object_recognition:
+                await state.update_data(current_level_id=next_level.id)
+                await start_object_recognition_level(message, state, next_level)
+            elif next_level.is_info_collection:
                 await start_info_collection_level(message, state, repo, next_level)
             else:
                 await state.update_data(current_level_id=next_level.id)
@@ -175,3 +179,15 @@ async def start_info_collection_level(message: types.Message, state: FSMContext,
 
     # Сохраняем данные о текущем уровне и инициируем словарь для хранения информации о пользователе
     await state.update_data(current_level_id=level.id, user_info={})
+
+
+async def start_object_recognition_level(message: types.Message, state: FSMContext,  level: Level):
+    # Отправляем эталонное изображение с инструкцией для пользователя
+    await send_message_with_optional_photo(
+        message,
+        "Пожалуйста, загрузите фотографию, на которой присутствует указанный объект.",
+        level.image_file  # Эталонное изображение
+    )
+
+    # Устанавливаем состояние FSM на этап распознавания объекта
+    await state.set_state(QuizStates.object_recognition)
