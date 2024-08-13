@@ -77,26 +77,16 @@ async def handle_correct_answer(message: types.Message, state: FSMContext, repo:
 
         await message.answer(f"Верно! Вы заработали {reward} points.")
 
-        next_level = await repo.get_next_level(current_level_id)
-        if next_level:
-            if next_level.is_object_recognition:
-                await state.update_data(current_level_id=next_level.id)
-                await start_object_recognition_level(message, state, next_level)
-            elif next_level.is_info_collection:
-                await start_info_collection_level(message, state, repo, next_level)
-            else:
-                await state.update_data(current_level_id=next_level.id)
-                await message.answer(
-                    "Нажмите 'Следующий вопрос' для продолжения или выберите действие из меню.",
-                    reply_markup=types.ReplyKeyboardMarkup(
-                        keyboard=[[types.KeyboardButton(text="Следующий вопрос")]],
-                        resize_keyboard=True,
-                        one_time_keyboard=True
-                    )
-                )
-                await state.set_state(QuizStates.intermediate)
-        else:
-            await complete_quiz(message, state)
+        # Переход в состояние intermediate после всех уровней
+        await message.answer(
+            "Нажмите 'Следующий вопрос' для продолжения или выберите действие из меню.",
+            reply_markup=types.ReplyKeyboardMarkup(
+                keyboard=[[types.KeyboardButton(text="Следующий вопрос")]],
+                resize_keyboard=True,
+                one_time_keyboard=True
+            )
+        )
+        await state.set_state(QuizStates.intermediate)
     except Exception as e:
         logger.error(f"Error handling correct answer: {e}")
         raise
@@ -162,7 +152,7 @@ async def handle_hint(message: types.Message, state: FSMContext):
         await message.answer("Произошла ошибка при запросе подсказки. Пожалуйста, попробуйте позже.")
 
 
-async def start_info_collection_level(message: types.Message, state: FSMContext, repo: Repository, level: Level):
+async def start_info_collection_level(message: types.Message, state: FSMContext, level: Level):
     """
     Запуск уровня сбора информации. Эта функция задает первый вопрос пользователю и переводит его в состояние сбора информации.
 
@@ -181,7 +171,7 @@ async def start_info_collection_level(message: types.Message, state: FSMContext,
     await state.update_data(current_level_id=level.id, user_info={})
 
 
-async def start_object_recognition_level(message: types.Message, state: FSMContext,  level: Level):
+async def start_object_recognition_level(message: types.Message, state: FSMContext, level: Level):
     # Отправляем эталонное изображение с инструкцией для пользователя
     await send_message_with_optional_photo(
         message,
@@ -191,3 +181,31 @@ async def start_object_recognition_level(message: types.Message, state: FSMConte
 
     # Устанавливаем состояние FSM на этап распознавания объекта
     await state.set_state(QuizStates.object_recognition)
+
+
+async def start_intro_level(message: types.Message, state: FSMContext, repo: Repository, level: Level):
+    try:
+        # Отправляем интро текст уровня и, если доступно, изображение
+        await send_message_with_optional_photo(message, level.intro_text, level.image_file)
+
+        # Переход в состояние интро уровня
+        await state.set_state(QuizStates.intro)
+
+        # Обновляем текущее состояние пользователя в базе данных
+        current_state = await state.get_state()
+        if current_state:
+            user = await repo.get_user_by_chat_id(str(message.chat.id))
+            await repo.update_user_state(user.id, current_state, await state.get_data())
+
+        # Если есть инструкции для перехода к следующему этапу, добавляем их
+        await message.answer(
+            "Нажмите 'Далее', чтобы продолжить.",
+            reply_markup=types.ReplyKeyboardMarkup(
+                keyboard=[[types.KeyboardButton(text="Далее")]],
+                resize_keyboard=True,
+                one_time_keyboard=True
+            )
+        )
+    except Exception as e:
+        logger.error(f"Error in start_intro_level: {e}")
+        await message.answer("Произошла ошибка при запуске интро уровня. Пожалуйста, попробуйте позже.")

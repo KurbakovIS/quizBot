@@ -5,6 +5,7 @@ from loguru import logger
 from src.bot.handlers.answer import complete_quiz, start_info_collection_level, start_object_recognition_level
 from src.bot.handlers.game import start_game
 from src.bot.state_machine import InfoCollectionStates
+from src.bot.states import QuizStates
 from src.bot.utils.skip_message import skip_command
 from src.database.repository import Repository
 from src.database.uow import UnitOfWork
@@ -97,31 +98,23 @@ async def confirm_info(message: types.Message, state: FSMContext):
 
             await message.answer("Информация сохранена.", reply_markup=types.ReplyKeyboardRemove())
 
-            # Переход к следующему уровню
-            async with UnitOfWork() as uow:
-                repo = Repository(uow.session)
-                current_level_id = data.get('current_level_id')
-                next_level = await repo.get_next_level(current_level_id)
-
-                if next_level:
-                    await state.update_data(current_level_id=next_level.id)
-
-                    # Проверка типа следующего уровня
-                    if next_level.is_object_recognition:
-                        await start_object_recognition_level(message, state,  next_level)
-                    elif next_level.is_info_collection:
-                        await start_info_collection_level(message, state, repo, next_level)
-                    else:
-                        await start_game(message, state)
-                else:
-                    await complete_quiz(message, state)
+            # Переход в состояние intermediate после сбора информации
+            await message.answer(
+                "Нажмите 'Следующий вопрос' для продолжения или выберите действие из меню.",
+                reply_markup=types.ReplyKeyboardMarkup(
+                    keyboard=[[types.KeyboardButton(text="Следующий вопрос")]],
+                    resize_keyboard=True,
+                    one_time_keyboard=True
+                )
+            )
+            await state.set_state(QuizStates.intermediate)
         else:
             # Начинаем сбор информации заново
             async with UnitOfWork() as uow:
                 repo = Repository(uow.session)
                 current_level_id = (await state.get_data()).get('current_level_id')
                 level = await repo.get_level_by_id(current_level_id)
-                await start_info_collection_level(message, state, repo, level)
+                await start_info_collection_level(message, state, level)
     except Exception as e:
         logger.error(f"Error in confirm_info: {e}")
         await message.answer("Произошла ошибка при сохранении информации. Пожалуйста, попробуйте позже.")
