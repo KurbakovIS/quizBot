@@ -2,7 +2,8 @@ import uuid
 from sqlalchemy import insert, update, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.database.models import User, Question, Level, StageCompletion, UserLevel, UserState
+from src.database.models import User, Question, Level, StageCompletion, UserLevel, UserState, Admin
+
 
 class Repository:
     def __init__(self, session: AsyncSession):
@@ -10,6 +11,10 @@ class Repository:
 
     async def get_user_by_chat_id(self, chat_id: str):
         result = await self.session.execute(select(User).where(User.chat_id == chat_id))
+        return result.scalar_one_or_none()
+
+    async def get_user_by_username(self, username: str):
+        result = await self.session.execute(select(Admin).where(Admin.username == username))
         return result.scalar_one_or_none()
 
     async def create_user(self, username: str, chat_id: str, first_name: str, last_name: str, current_level: uuid.UUID):

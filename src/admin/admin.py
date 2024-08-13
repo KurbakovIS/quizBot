@@ -22,7 +22,7 @@ class AdminAuthentication(AuthenticationBackend):
 
         async with UnitOfWork() as uow:
             repo = Repository(uow.session)
-            admin = await repo.get_admin_by_username(username)
+            admin = await repo.get_user_by_username(username)
             if admin and pwd_context.verify(password, admin.password):
                 request.session.update({"user": username})
                 return True
