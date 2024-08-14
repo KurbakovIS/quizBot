@@ -7,12 +7,8 @@ from src.bot.handlers.answer import handle_answer, skip_level, return_to_skipped
 from src.bot.handlers.game import start_game
 from src.bot.handlers.handle_object_recognition import handle_object_recognition
 from src.bot.handlers.intro import continue_intro
-from src.bot.handlers.menu.comment import handle_comment
-from src.bot.handlers.menu.demo import handle_demo
-from src.bot.handlers.menu.info import handle_info
-from src.bot.handlers.menu.menu_start import handle_menu_start
-from src.bot.handlers.menu.shop import handle_shop
-from src.bot.handlers.menu.subscribe import handle_subscribe
+from src.bot.handlers.menu.handlers import handle_info, handle_comment, handle_demo, handle_shop, handle_subscribe, \
+    handle_menu_start
 from src.bot.handlers.state_machine import collect_name, collect_company, collect_position, confirm_info
 from src.bot.start import start_bot
 from src.bot.state_machine import InfoCollectionStates
