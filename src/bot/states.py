@@ -9,3 +9,4 @@ class QuizStates(StatesGroup):
     completed = State()
     info_collection = State()  # Новое состояние для сбора информаци
     object_recognition = State()
+    return_to_skipped = State()  # Состояние для возврата к пропущенным уровням

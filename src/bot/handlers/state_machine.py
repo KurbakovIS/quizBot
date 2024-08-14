@@ -2,11 +2,9 @@ from aiogram import types
 from aiogram.fsm.context import FSMContext
 from loguru import logger
 
-from src.bot.handlers.answer import complete_quiz, start_info_collection_level, start_object_recognition_level
-from src.bot.handlers.game import start_game
+from src.bot.handlers.answer import start_info_collection_level, update_user_state
 from src.bot.state_machine import InfoCollectionStates
 from src.bot.states import QuizStates
-from src.bot.utils.skip_message import skip_command
 from src.database.repository import Repository
 from src.database.uow import UnitOfWork
 
@@ -108,6 +106,11 @@ async def confirm_info(message: types.Message, state: FSMContext):
                 )
             )
             await state.set_state(QuizStates.intermediate)
+
+            # Обновление состояния пользователя
+            async with UnitOfWork() as uow:
+                repo = Repository(uow.session)
+                await update_user_state(repo, state, message)
         else:
             # Начинаем сбор информации заново
             async with UnitOfWork() as uow:

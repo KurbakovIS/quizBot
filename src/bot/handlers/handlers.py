@@ -2,13 +2,13 @@ from aiogram import Router, F
 from aiogram.filters import CommandStart, Command
 from aiogram.filters.state import StateFilter
 
-from src.bot.handlers.answer import handle_answer
+from src.bot.handlers.answer import handle_answer, skip_level, return_to_skipped_levels, handle_skipped_level_choice, \
+    handle_next_question
 from src.bot.handlers.game import start_game
 from src.bot.handlers.handle_object_recognition import handle_object_recognition
 from src.bot.handlers.intro import continue_intro
 from src.bot.handlers.menu.comment import handle_comment
 from src.bot.handlers.menu.demo import handle_demo
-from src.bot.handlers.menu.handle_next_question import handle_next_question
 from src.bot.handlers.menu.info import handle_info
 from src.bot.handlers.menu.menu_start import handle_menu_start
 from src.bot.handlers.menu.shop import handle_shop
@@ -81,6 +81,12 @@ def register_all_handlers(router: Router):
     register_info_collection_handlers(router)
 
     register_handle_next_question(router)
+
+    # Регистрация новых обработчиков
+    router.message.register(skip_level, StateFilter(QuizStates.question), F.text == "Пропустить уровень")
+    router.message.register(return_to_skipped_levels, StateFilter(QuizStates.completed),
+                            F.text == "Вернуться на пропущенные уровни")
+    router.message.register(handle_skipped_level_choice, StateFilter(QuizStates.return_to_skipped))
 
 
 register_all_handlers(router)

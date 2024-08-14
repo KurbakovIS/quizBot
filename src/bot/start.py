@@ -1,5 +1,6 @@
 from aiogram import types
 from aiogram.fsm.context import FSMContext
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from loguru import logger
 
 from src.bot.state_machine import InfoCollectionStates
@@ -52,11 +53,44 @@ async def restore_user_state(message: types.Message, state: FSMContext, repo: Re
     quiz_completed = data.get('quiz_completed', False)
 
     if quiz_completed:
-        await message.answer("Все вопросы завершены.")
+        skipped_levels = await repo.get_skipped_levels(user_state.user_id)
+        if skipped_levels:
+            keyboard = ReplyKeyboardMarkup(
+                keyboard=[[KeyboardButton(text=level.name)] for level in skipped_levels],
+                resize_keyboard=True,
+                one_time_keyboard=True
+            )
+            await message.answer(
+                "Все вопросы завершены. Хотите вернуться к пропущенным уровням?",
+                reply_markup=keyboard
+            )
+            await state.set_state(QuizStates.return_to_skipped)
+        else:
+            await message.answer("Все вопросы завершены. Поздравляем! Вы завершили викторину.")
+            await state.set_state(QuizStates.completed)
+    elif current_state == QuizStates.object_recognition.state and current_level_id:
+        # Добавляем обработку для состояния object_recognition
+        level = await repo.get_level_by_id(current_level_id)
+        if level:
+            await send_message_with_optional_photo(
+                message,
+                "Пожалуйста, загрузите фотографию, на которой присутствует указанный объект.",
+                level.image_file
+            )
     elif current_state == QuizStates.question.state and current_question_id:
         question = await repo.get_question_by_id(current_question_id)
         if question:
             await send_message_with_optional_photo(message, question.text, question.image_file)
+    elif current_state == QuizStates.intermediate.state:
+        # Обработка для состояния intermediate
+        await message.answer(
+            "Нажмите 'Следующий вопрос' для продолжения или выберите действие из меню.",
+            reply_markup=types.ReplyKeyboardMarkup(
+                keyboard=[[types.KeyboardButton(text="Следующий вопрос")]],
+                resize_keyboard=True,
+                one_time_keyboard=True
+            )
+        )
     elif current_state in [QuizStates.intro.state, QuizStates.start.state]:
         level = await repo.get_level_by_id(current_level_id)
         if level:
