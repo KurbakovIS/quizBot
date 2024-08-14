@@ -6,7 +6,7 @@ from loguru import logger
 from src.bot.utils.hint import get_question_from_state, generate_hint_message
 
 
-async def handle_hint(message: types.Message, state: FSMContext):
+async def handle_hint(message: types.Message, state: FSMContext) -> None:
     try:
         question = await get_question_from_state(state)
         hint_text = generate_hint_message(question)
