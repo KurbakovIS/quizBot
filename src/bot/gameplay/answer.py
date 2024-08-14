@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from loguru import logger
 
-from src.bot.state_machine import InfoCollectionStates
+from src.bot.fsm.state_fsm import InfoCollectionStates
 from src.bot.states import QuizStates
 from src.bot.utils.hint import get_question_from_state, generate_hint_message
 from src.bot.utils.message_actions import send_message_with_optional_photo

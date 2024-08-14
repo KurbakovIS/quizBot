@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from loguru import logger
 
 from src.bot.cv import load_model, is_duck_present
-from src.bot.handlers.answer import skip_level
+from src.bot.gameplay.answer import skip_level
 from src.bot.states import QuizStates
 from src.database.repository import Repository
 from src.database.uow import UnitOfWork

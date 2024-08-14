@@ -4,9 +4,10 @@ from aiogram import types
 from aiogram.fsm.context import FSMContext
 from loguru import logger
 
-from src.bot.handlers.answer import start_info_collection_level, update_user_state
-from src.bot.state_machine import InfoCollectionStates
+from src.bot.gameplay.answer import start_info_collection_level, update_user_state
+from src.bot.fsm.state_fsm import InfoCollectionStates
 from src.bot.states import QuizStates
+from src.bot.utils.errors import handle_error
 from src.database.repository import Repository
 from src.database.uow import UnitOfWork
 
@@ -113,7 +114,3 @@ async def validate_input(message: types.Message) -> bool:
     return True
 
 
-# Обработка ошибок
-async def handle_error(message: types.Message, error_message: str, error: Exception):
-    logger.error(f"{error_message}: {error}")
-    await message.answer("Произошла ошибка. Пожалуйста, попробуйте снова.")

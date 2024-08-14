@@ -1,6 +1,7 @@
 from aiogram import types
 from aiogram.fsm.context import FSMContext
 from src.bot.states import QuizStates
+from src.bot.utils.errors import handle_error
 from src.bot.utils.message_actions import send_message_with_optional_photo
 from src.database import User, Level
 from src.database.repository import Repository
@@ -82,6 +83,3 @@ async def update_user_state(repo: Repository, user, state: FSMContext):
         await repo.update_user_state(user.id, current_state, await state.get_data())
 
 
-async def handle_error(message: types.Message, error_message: str, error: Exception):
-    logger.error(f"{error_message}: {error}")
-    await message.answer("Произошла ошибка при продолжении. Пожалуйста, попробуйте позже.")
