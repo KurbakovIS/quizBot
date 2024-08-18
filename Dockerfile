@@ -4,9 +4,6 @@ FROM python:3.11-slim
 # Создание директории для хранения данных
 RUN mkdir -p /data
 
-# Монтирование volume
-VOLUME /data
-
 # Установка переменной окружения для проверки внутри Docker
 ENV DOCKER=True
 
