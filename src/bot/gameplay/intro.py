@@ -16,7 +16,7 @@ async def continue_intro(message: types.Message, state: FSMContext):
             repo = Repository(uow.session)
             user, data = await get_user_and_state_data(repo, message, state)
 
-            next_level = await repo.get_next_level(data.get('current_level_id'))
+            next_level = await repo.get_next_level(data.get('current_level_id'), user.id)
             if next_level:
                 await handle_level_transition(message, state, repo, user, next_level, data)
             else:
@@ -33,7 +33,7 @@ async def handle_level_transition(message: types.Message, state: FSMContext, rep
     if next_level.is_intro:
         await handle_intro_level(message, state, repo, user, next_level, data)
     else:
-        await start_quiz(message, state, repo, user, next_level)
+        await start_quiz(message, state, repo, user, next_level, data)
 
 
 async def get_user_and_state_data(repo: Repository, message: types.Message, state: FSMContext):
@@ -45,12 +45,12 @@ async def get_user_and_state_data(repo: Repository, message: types.Message, stat
 async def handle_intro_level(message, state, repo, user, next_level, data):
     intro_levels_completed = data.get('intro_levels_completed', 0)
     await send_message_with_optional_photo(message, next_level.intro_text, next_level.image_file)
-    await update_user_level_data(repo, user, next_level)
+    await update_user_level_data(repo, user, next_level.id, data.get('current_level_id'))
     await state.update_data(current_level_id=next_level.id, intro_levels_completed=intro_levels_completed + 1)
     await state.set_state(QuizStates.intro)
 
 
-async def start_quiz(message, state, repo, user, next_level):
+async def start_quiz(message, state, repo, user, next_level, data):
     await message.answer(
         "Викторина начинается. Нажмите 'Далее' для первого вопроса.",
         reply_markup=types.ReplyKeyboardMarkup(
@@ -59,15 +59,15 @@ async def start_quiz(message, state, repo, user, next_level):
             one_time_keyboard=True
         )
     )
-    await update_user_level_data(repo, user, next_level)
+    await update_user_level_data(repo, user, next_level.id, data.get('current_level_id'))
     await state.update_data(current_level_id=next_level.id)
     await state.set_state(QuizStates.start)
 
 
-async def update_user_level_data(repo: Repository, user, next_level):
-    await repo.add_user_level_entry(user.id, next_level.id)
-    await repo.add_stage_completion(user.id, next_level.id)
-    await repo.update_user_level(user.id, next_level.id)
+async def update_user_level_data(repo: Repository, user, next_level, current_level_id):
+    await repo.add_user_level_entry(user.id, next_level)
+    await repo.mark_level_completed(user.id, current_level_id)
+    await repo.update_user_level(user.id, next_level)
 
 
 async def handle_no_more_levels(message, state):

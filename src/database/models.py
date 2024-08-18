@@ -77,12 +77,20 @@ class UserLevel(BaseEntity):
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('users.id'), primary_key=True)
     level_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('levels.id'), primary_key=True)
 
+    __table_args__ = (
+        UniqueConstraint('user_id', 'level_id', name='uq_user_levels_user_id_level_id'),
+    )
+
 
 class UserSkippedLevel(BaseEntity):
     __tablename__ = 'user_skipped_levels'
 
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('users.id'), primary_key=True)
     level_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('levels.id'), primary_key=True)
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'level_id', name='uq_user_skipped_levels_user_id_level_id'),
+    )
 
 
 class StageCompletion(BaseEntity):
@@ -92,6 +100,10 @@ class StageCompletion(BaseEntity):
     stage_id: Mapped[uuid.UUID] = mapped_column(UUID)
     used_hint: Mapped[bool] = mapped_column(Boolean, default=False)
     user = relationship('User', back_populates='stages_completed')
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'stage_id', name='uq_user_skipped_levels_user_id_stage_id'),
+    )
 
 
 class Admin(BaseEntity):

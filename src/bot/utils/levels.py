@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from aiogram import types
 from aiogram.fsm.context import FSMContext
 from loguru import logger
@@ -16,10 +18,13 @@ async def start_level(message: types.Message, state: FSMContext, repo: Repositor
     if level.is_intro:
         await start_intro_level(message, state, repo, level)
     elif level.is_object_recognition:
+        await repo.add_user_level_entry(user_id, level.id)
         await start_object_recognition_level(message, state, level, repo, user_id)
     elif level.is_info_collection:
-        await start_info_collection_level(message, state, level, repo, user_id)
+        await repo.add_user_level_entry(user_id, level.id)
+        await start_info_collection_level(message, state, level.id, repo, user_id)
     else:
+        await repo.add_user_level_entry(user_id, level.id)
         questions = await repo.get_questions_by_level(level.id)
         if questions:
             question = questions[0]
@@ -66,12 +71,12 @@ async def start_object_recognition_level(message: types.Message, state: FSMConte
     await update_user_state(repo, state, user_id)
 
 
-async def start_info_collection_level(message: types.Message, state: FSMContext, level: Level, repo: Repository,
-                                      user_id):
+async def start_info_collection_level(message: types.Message, state: FSMContext, current_level_id: UUID,
+                                      repo: Repository, user_id):
     await message.answer("Как тебя зовут?")
     await state.set_state(InfoCollectionStates.collecting_name)
     await update_user_state(repo, state, user_id)
-    await state.update_data(current_level_id=level.id, user_info={})
+    await state.update_data(current_level_id=current_level_id, user_info={})
 
 
 async def skip_level(message: types.Message, state: FSMContext, repo: Repository):
@@ -82,10 +87,9 @@ async def skip_level(message: types.Message, state: FSMContext, repo: Repository
 
         # Отмечаем уровень как пропущенный
         await repo.mark_level_skipped(user.id, current_level_id)
-        await repo.session.commit()
 
         # Переход к следующему уровню
-        next_level = await repo.get_next_level(current_level_id)
+        next_level = await repo.get_next_level(current_level_id, user.id)
         if next_level:
             await state.update_data(current_level_id=next_level.id)
 
@@ -93,9 +97,11 @@ async def skip_level(message: types.Message, state: FSMContext, repo: Repository
             if next_level.is_intro:
                 await start_intro_level(message, state, repo, next_level)
             elif next_level.is_object_recognition:
+                await repo.add_user_level_entry(user.id, current_level_id)
                 await start_object_recognition_level(message, state, next_level, repo, user.id)
             elif next_level.is_info_collection:
-                await start_info_collection_level(message, state, next_level, repo, user.id)
+                await repo.add_user_level_entry(user.id, current_level_id)
+                await start_info_collection_level(message, state, next_level.id, repo, user.id)
             else:
                 await message.answer(
                     "Нажмите 'Следующий вопрос' для продолжения или выберите действие из меню.",

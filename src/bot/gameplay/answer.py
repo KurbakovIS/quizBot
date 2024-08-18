@@ -28,6 +28,7 @@ async def handle_answer(message: types.Message, state: FSMContext):
             async with UnitOfWork() as uow:
                 repo = Repository(uow.session)
                 await skip_level(message, state, repo)
+                await uow.commit()
             return
 
         if await is_hint_requested(message, state):
@@ -167,7 +168,7 @@ async def handle_next_question(message: types.Message, state: FSMContext):
             repo = Repository(uow.session)
             user = await repo.get_user_by_chat_id(str(message.chat.id))
             # Получаем следующий уровень
-            next_level = await repo.get_next_level(current_level_id)
+            next_level = await repo.get_next_level(current_level_id, user.id)
 
             if next_level:
                 # Обновляем текущее состояние на следующий уровень

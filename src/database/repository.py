@@ -43,11 +43,13 @@ class Repository:
         result = await self.session.execute(select(Question).where(Question.id == question_id))
         return result.scalar_one_or_none()
 
-    async def get_next_level(self, current_level_id: uuid.UUID):
+    async def get_next_level(self, current_level_id: uuid.UUID, user_id: uuid.UUID):
         current_level = await self.get_level_by_id(current_level_id)
         result = await self.session.execute(
             select(Level)
             .where(Level.number > current_level.number)
+            .where(~Level.id.in_(select(StageCompletion.stage_id).where(StageCompletion.user_id == user_id)))
+            .where(~Level.id.in_(select(UserSkippedLevel.level_id).where(UserSkippedLevel.user_id == user_id)))
             .order_by(Level.number.asc())
             .limit(1)
         )
@@ -77,10 +79,6 @@ class Repository:
         stmt = insert(UserLevel).values(user_id=user_id, level_id=level_id)
         await self.session.execute(stmt)
 
-    async def add_stage_completion(self, user_id: uuid.UUID, stage_id: uuid.UUID):
-        stmt = insert(StageCompletion).values(user_id=user_id, stage_id=stage_id)
-        await self.session.execute(stmt)
-
     async def get_user_state(self, user_id: uuid.UUID):
         result = await self.session.execute(select(UserState).where(UserState.user_id == user_id))
         return result.scalar_one_or_none()
@@ -98,7 +96,6 @@ class Repository:
         # Логика для записи пропущенного уровня
         skipped_level = UserSkippedLevel(user_id=user_id, level_id=level_id)
         self.session.add(skipped_level)
-        await self.session.commit()
 
     async def get_skipped_levels(self, user_id):
         result = await self.session.execute(
@@ -119,8 +116,6 @@ class Repository:
             .where(UserSkippedLevel.user_id == user_id)
             .where(UserSkippedLevel.level_id == level_id)
         )
-        await self.session.commit()
-
 
     async def get_completed_levels(self, user_id):
         result = await self.session.execute(

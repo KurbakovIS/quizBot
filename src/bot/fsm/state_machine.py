@@ -67,6 +67,7 @@ async def confirm_info(message: types.Message, state: FSMContext):
         async with UnitOfWork() as uow:
             repo = Repository(uow.session)
             user = await repo.get_user_by_chat_id(str(message.chat.id))
+            current_level_id = (await state.get_data()).get('current_level_id')
 
             if message.text.lower() == "да":
                 await save_user_info(message, state, repo)
@@ -81,10 +82,9 @@ async def confirm_info(message: types.Message, state: FSMContext):
                 )
                 await state.set_state(QuizStates.intermediate)
                 await update_user_state(repo, state, user.id)
+                await repo.mark_level_completed(user.id, current_level_id)
             else:
-                current_level_id = (await state.get_data()).get('current_level_id')
-                level = await repo.get_level_by_id(current_level_id)
-                await start_info_collection_level(message, state, level, repo, user.id)
+                await start_info_collection_level(message, state, current_level_id, repo, user.id)
             await uow.commit()
     except Exception as e:
         await handle_error(message, "Error in confirm_info", e)

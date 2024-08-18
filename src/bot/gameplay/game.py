@@ -21,7 +21,7 @@ async def start_game(message: types.Message, state: FSMContext):
             if questions:
                 await process_questions(message, state, repo, user.id, current_level_id, questions)
             else:
-                await process_next_level_or_finish(message, state, repo, current_level_id)
+                await process_next_level_or_finish(message, state, repo, current_level_id, user.id)
 
             await finalize_game_state(repo, state, user.id)
             await uow.commit()
@@ -43,16 +43,15 @@ async def process_questions(message: types.Message, state: FSMContext, repo: Rep
         question = questions[0]
         await send_message_with_optional_photo(message, question.text, question.image_file)
         await update_state(state, current_question_id=question.id, new_state=QuizStates.question.state)
-        await repo.add_stage_completion(user_id, current_level_id)
     except Exception as e:
         await handle_game_error(message, "Error in process_questions", e)
         raise
 
 
 async def process_next_level_or_finish(message: types.Message, state: FSMContext, repo: Repository,
-                                       current_level_id: UUID):
+                                       current_level_id: UUID, user_id):
     try:
-        next_level = await repo.get_next_level(current_level_id)
+        next_level = await repo.get_next_level(current_level_id, user_id)
         if next_level:
             await update_state(state, current_level_id=next_level.id)
             await start_game(message, state)  # Рекурсивный вызов для обработки следующего уровня.
