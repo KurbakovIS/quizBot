@@ -2,14 +2,13 @@ import re
 
 from aiogram import types
 from aiogram.fsm.context import FSMContext
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from loguru import logger
 
-from src.bot.fsm.state_fsm import InfoCollectionStates
 from src.bot.states import QuizStates
+from src.bot.utils.errors import handle_error_answer
 from src.bot.utils.hint import get_question_from_state, generate_hint_message
-from src.bot.utils.message_actions import send_message_with_optional_photo
-from src.database import Level
+from src.bot.utils.levels import skip_level, start_level
+from src.bot.utils.state_management import update_user_state
 from src.database.repository import Repository
 from src.database.uow import UnitOfWork
 
@@ -20,14 +19,15 @@ def normalize_text(text: str) -> str:
 
 async def handle_answer(message: types.Message, state: FSMContext):
     try:
-        # Игнорируем команды
         if message.text.startswith('/'):
             await message.answer(
                 "Команды меню недоступны во время ответа на вопрос. Завершите ответ и попробуйте снова.")
             return
-        # Проверяем, не нажата ли кнопка "Пропустить уровень"
+
         if message.text == "Пропустить уровень":
-            await skip_level(message, state)
+            async with UnitOfWork() as uow:
+                repo = Repository(uow.session)
+                await skip_level(message, state, repo)
             return
 
         if await is_hint_requested(message, state):
@@ -35,11 +35,12 @@ async def handle_answer(message: types.Message, state: FSMContext):
 
         async with UnitOfWork() as uow:
             repo = Repository(uow.session)
+            user = await repo.get_user_by_chat_id(str(message.chat.id))
             data = await state.get_data()
-
             question = await get_current_question(repo, data)
+
             if not question:
-                await handle_error(message, "Question not found.")
+                await handle_error_answer(message, "Question not found.")
                 return
 
             user_answer = normalize_text(message.text)
@@ -50,11 +51,41 @@ async def handle_answer(message: types.Message, state: FSMContext):
             else:
                 await handle_incorrect_answer(message, state, question)
 
-            await update_user_state(repo, state, message)
+            await update_user_state(repo, state, user.id)
             await uow.commit()
     except Exception as e:
         logger.error(f"Error in handle_answer: {e}")
         await message.answer("Произошла ошибка при обработке ответа. Пожалуйста, попробуйте позже.")
+
+
+async def handle_correct_answer(message: types.Message, state: FSMContext, repo: Repository, data: dict):
+    try:
+        user = await repo.get_user_by_chat_id(str(message.chat.id))
+        current_level_id = data.get('current_level_id')
+
+        reward = await repo.get_level_reward(current_level_id)
+        await repo.update_user_balance(user.id, reward)
+        await repo.mark_level_completed(user.id, current_level_id)
+
+        await message.answer(f"Верно! Вы заработали {reward} points.")
+        await prompt_next_action(message, state)
+    except Exception as e:
+        logger.error(f"Error handling correct answer: {e}")
+        raise
+
+
+async def handle_incorrect_answer(message: types.Message, state: FSMContext, question):
+    try:
+        buttons = [types.KeyboardButton(text="Пропустить уровень")]
+        if question.hint:
+            buttons.insert(0, types.KeyboardButton(text="Подсказка"))
+
+        keyboard = types.ReplyKeyboardMarkup(keyboard=[buttons], resize_keyboard=True, one_time_keyboard=True)
+        await message.answer("Неправильно. Попробуйте снова или пропустите уровень.", reply_markup=keyboard)
+        await state.set_state(QuizStates.question)
+    except Exception as e:
+        logger.error(f"Error handling incorrect answer: {e}")
+        raise
 
 
 async def is_hint_requested(message: types.Message, state: FSMContext) -> bool:
@@ -69,104 +100,6 @@ async def get_current_question(repo: Repository, data: dict):
     if question_id is None:
         return None
     return await repo.get_question_by_id(question_id)
-
-
-async def handle_correct_answer(message: types.Message, state: FSMContext, repo: Repository, data: dict):
-    try:
-        user = await repo.get_user_by_chat_id(str(message.chat.id))
-        current_level_id = data.get('current_level_id')
-
-        reward = await repo.get_level_reward(current_level_id)
-        await repo.update_user_balance(user.id, reward)
-        await repo.mark_level_completed(user.id, current_level_id)
-
-        await message.answer(f"Верно! Вы заработали {reward} points.")
-
-        # Переход в состояние intermediate после всех уровней
-        await message.answer(
-            "Нажмите 'Следующий вопрос' для продолжения или выберите действие из меню.",
-            reply_markup=types.ReplyKeyboardMarkup(
-                keyboard=[[types.KeyboardButton(text="Следующий вопрос")]],
-                resize_keyboard=True,
-                one_time_keyboard=True
-            )
-        )
-        await state.set_state(QuizStates.intermediate)
-
-        # Обновление состояния пользователя
-        await update_user_state(repo, state, message)
-    except Exception as e:
-        logger.error(f"Error handling correct answer: {e}")
-        raise
-
-
-async def handle_incorrect_answer(message: types.Message, state: FSMContext, question):
-    try:
-        buttons = []
-        if question.hint:
-            buttons.append([types.KeyboardButton(text="Подсказка")])
-
-        buttons.append([types.KeyboardButton(text="Пропустить уровень")])
-
-        keyboard = types.ReplyKeyboardMarkup(
-            keyboard=buttons,
-            resize_keyboard=True,
-            one_time_keyboard=True
-        )
-
-        await message.answer("Неправильно. Попробуйте снова или пропустите уровень.", reply_markup=keyboard)
-        await state.set_state(QuizStates.question)
-    except Exception as e:
-        logger.error(f"Error handling incorrect answer: {e}")
-        raise
-
-
-async def complete_quiz(message: types.Message, state: FSMContext):
-    try:
-        async with UnitOfWork() as uow:
-            repo = Repository(uow.session)
-            user = await repo.get_user_by_chat_id(str(message.chat.id))
-
-            # Проверяем, есть ли пропущенные уровни
-            skipped_levels = await repo.get_skipped_levels(user.id)
-            if skipped_levels:
-                keyboard = ReplyKeyboardMarkup(
-                    keyboard=[[KeyboardButton(text=level.name)] for level in skipped_levels],
-                    resize_keyboard=True,
-                    one_time_keyboard=True
-                )
-
-                await message.answer(
-                    "Все вопросы завершены. Хотите вернуться к пропущенным уровням?",
-                    reply_markup=keyboard
-                )
-                await state.set_state(QuizStates.return_to_skipped)
-            else:
-                await message.answer("Поздравляем! Вы завершили викторину.")
-                await state.set_state(QuizStates.completed)
-
-            # Сохранение обновленного состояния пользователя в базе данных
-            await update_user_state(repo, state, message)
-            await uow.commit()
-    except Exception as e:
-        logger.error(f"Error completing quiz: {e}")
-        raise
-
-
-async def update_user_state(repo: Repository, state: FSMContext, message: types.Message):
-    try:
-        user = await repo.get_user_by_chat_id(str(message.chat.id))
-        current_state = await state.get_state()
-        if current_state:
-            await repo.update_user_state(user.id, current_state, await state.get_data())
-    except Exception as e:
-        logger.error(f"Error updating user state: {e}")
-        raise
-
-
-async def handle_error(message: types.Message, error_msg: str):
-    logger.error(error_msg)
-    await message.answer("Произошла ошибка при обработке запроса. Пожалуйста, попробуйте позже.")
 
 
 async def handle_hint(message: types.Message, state: FSMContext):
@@ -185,106 +118,67 @@ async def handle_hint(message: types.Message, state: FSMContext):
         await message.answer("Произошла ошибка при запросе подсказки. Пожалуйста, попробуйте позже.")
 
 
-async def start_info_collection_level(message: types.Message, state: FSMContext, level: Level):
-    """
-    Запуск уровня сбора информации. Эта функция задает первый вопрос пользователю и переводит его в состояние сбора информации.
-
-    :param message: Сообщение пользователя, инициирующее начало уровня.
-    :param state: Состояние FSM, используемое для отслеживания процесса сбора информации.
-    :param level: Уровень, который обозначен как уровень сбора информации.
-    """
-    # Отправляем первый вопрос для сбора информации: "Как тебя зовут?"
-    await message.answer("Как тебя зовут?")
-
-    # Устанавливаем состояние FSM на первый этап сбора информации
-    await state.set_state(InfoCollectionStates.collecting_name)
-
-    # Сохраняем данные о текущем уровне и инициируем словарь для хранения информации о пользователе
-    await state.update_data(current_level_id=level.id, user_info={})
-
-
-async def start_object_recognition_level(message: types.Message, state: FSMContext, level: Level):
-    # Отправляем эталонное изображение с инструкцией для пользователя
-    await send_message_with_optional_photo(
-        message,
-        "Пожалуйста, загрузите фотографию, на которой присутствует указанный объект.",
-        level.image_file  # Эталонное изображение
-    )
-
-    # Устанавливаем состояние FSM на этап распознавания объекта
-    await state.set_state(QuizStates.object_recognition)
-
-
-async def start_intro_level(message: types.Message, state: FSMContext, repo: Repository, level: Level):
+async def complete_quiz(message: types.Message, state: FSMContext):
     try:
-        # Отправляем интро текст уровня и, если доступно, изображение
-        await send_message_with_optional_photo(message, level.intro_text, level.image_file)
-
-        # Переход в состояние интро уровня
-        await state.set_state(QuizStates.intro)
-
-        # Обновляем текущее состояние пользователя в базе данных
-        current_state = await state.get_state()
-        if current_state:
+        async with UnitOfWork() as uow:
+            repo = Repository(uow.session)
             user = await repo.get_user_by_chat_id(str(message.chat.id))
-            await repo.update_user_state(user.id, current_state, await state.get_data())
 
-        # Если есть инструкции для перехода к следующему этапу, добавляем их
-        await message.answer(
-            "Нажмите 'Далее', чтобы продолжить.",
-            reply_markup=types.ReplyKeyboardMarkup(
-                keyboard=[[types.KeyboardButton(text="Далее")]],
-                resize_keyboard=True,
-                one_time_keyboard=True
-            )
-        )
+            skipped_levels = await repo.get_skipped_levels(user.id)
+            if skipped_levels:
+                keyboard = types.ReplyKeyboardMarkup(
+                    keyboard=[[types.KeyboardButton(text=level.name)] for level in skipped_levels],
+                    resize_keyboard=True,
+                    one_time_keyboard=True
+                )
+
+                await message.answer("Все вопросы завершены. Хотите вернуться к пропущенным уровням?",
+                                     reply_markup=keyboard)
+                await state.set_state(QuizStates.return_to_skipped)
+            else:
+                await message.answer("Поздравляем! Вы завершили викторину.", reply_markup=types.ReplyKeyboardRemove())
+                await state.set_state(QuizStates.completed)
+
+            await update_user_state(repo, state, user.id)
+            await uow.commit()
     except Exception as e:
-        logger.error(f"Error in start_intro_level: {e}")
-        await message.answer("Произошла ошибка при запуске интро уровня. Пожалуйста, попробуйте позже.")
+        logger.error(f"Error completing quiz: {e}")
+        raise
 
 
-async def skip_level(message: types.Message, state: FSMContext):
-    async with UnitOfWork() as uow:
-        repo = Repository(uow.session)
+async def prompt_next_action(message: types.Message, state: FSMContext):
+    await message.answer(
+        "Нажмите 'Следующий вопрос' для продолжения или выберите действие из меню.",
+        reply_markup=types.ReplyKeyboardMarkup(
+            keyboard=[[types.KeyboardButton(text="Следующий вопрос")]],
+            resize_keyboard=True,
+            one_time_keyboard=True
+        )
+    )
+    await state.set_state(QuizStates.intermediate)
+
+
+async def handle_next_question(message: types.Message, state: FSMContext):
+    try:
         data = await state.get_data()
         current_level_id = data.get('current_level_id')
-        user = await repo.get_user_by_chat_id(str(message.chat.id))
 
-        # Отмечаем уровень как пропущенный
-        await repo.mark_level_skipped(user.id, current_level_id)
-        await uow.commit()
+        async with UnitOfWork() as uow:
+            repo = Repository(uow.session)
+            user = await repo.get_user_by_chat_id(str(message.chat.id))
+            # Получаем следующий уровень
+            next_level = await repo.get_next_level(current_level_id)
 
-        # Проверяем, есть ли еще уровни
-        next_level = await repo.get_next_level(current_level_id)
-
-        if next_level:
-            await state.update_data(current_level_id=next_level.id)
-
-            # Переход на следующий уровень или промежуточное состояние
-            if next_level.is_intro:
-                await start_intro_level(message, state, repo, next_level)
-            elif next_level.is_object_recognition:
-                await start_object_recognition_level(message, state, next_level)
-            elif next_level.is_info_collection:
-                await start_info_collection_level(message, state, next_level)
+            if next_level:
+                # Обновляем текущее состояние на следующий уровень
+                await state.update_data(current_level_id=next_level.id)
+                await start_level(message, state, repo, next_level, user.id)
             else:
-                await message.answer(
-                    "Нажмите 'Следующий вопрос' для продолжения или выберите действие из меню.",
-                    reply_markup=types.ReplyKeyboardMarkup(
-                        keyboard=[[types.KeyboardButton(text="Следующий вопрос")]],
-                        resize_keyboard=True,
-                        one_time_keyboard=True
-                    )
-                )
-                await state.set_state(QuizStates.intermediate)
-        else:
-            # Все уровни завершены, переходим в состояние completed
-            await state.update_data(quiz_completed=True)
-            await state.set_state(QuizStates.completed)
-            await message.answer("Все вопросы завершены.", reply_markup=types.ReplyKeyboardRemove())
-
-        # Обновляем состояние пользователя в базе данных
-        await update_user_state(repo, state, message)
+                # Если уровней больше нет, переводим пользователя в состояние completed
+                await complete_quiz(message, state)
+            await uow.commit()
+    except Exception as e:
+        await handle_error_answer(message, f"Error in handle_next_question: {e}")
 
 
 async def return_to_skipped_levels(message: types.Message, state: FSMContext):
@@ -295,18 +189,20 @@ async def return_to_skipped_levels(message: types.Message, state: FSMContext):
 
             skipped_levels = await repo.get_skipped_levels(user.id)
             if skipped_levels:
-                keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-                buttons = [types.KeyboardButton(text=level.name) for level in skipped_levels]
-                keyboard.keyboard.extend([[button] for button in buttons])
+                keyboard = types.ReplyKeyboardMarkup(
+                    keyboard=[[types.KeyboardButton(text=level.name)] for level in skipped_levels],
+                    resize_keyboard=True,
+                    one_time_keyboard=True
+                )
 
                 await message.answer("Выберите пропущенный уровень для возврата:", reply_markup=keyboard)
                 await state.set_state(QuizStates.return_to_skipped)
             else:
                 await message.answer("Нет пропущенных уровней.")
                 await state.set_state(QuizStates.completed)
+            await uow.commit()
     except Exception as e:
-        logger.error(f"Error in return_to_skipped_levels: {e}")
-        await message.answer("Произошла ошибка при возврате к пропущенным уровням. Пожалуйста, попробуйте позже.")
+        await handle_error_answer(message, f"Error in return_to_skipped_levels: {e}")
 
 
 async def handle_skipped_level_choice(message: types.Message, state: FSMContext):
@@ -319,80 +215,17 @@ async def handle_skipped_level_choice(message: types.Message, state: FSMContext)
 
             if skipped_level:
                 await state.update_data(current_level_id=skipped_level.id)
-                await start_level(message, state, repo, skipped_level)
+                await start_level(message, state, repo, skipped_level, user.id)
 
                 # Удаление из пропущенных уровней
                 await repo.remove_skipped_level(user.id, skipped_level.id)
 
                 # Обновляем состояние пользователя
-                await update_user_state(repo, state, message)
+                await update_user_state(repo, state, user.id)
 
                 await uow.commit()
             else:
                 await message.answer("Указанный уровень не найден среди пропущенных.")
                 await state.set_state(QuizStates.completed)
     except Exception as e:
-        logger.error(f"Error in handle_skipped_level_choice: {e}")
-        await message.answer("Произошла ошибка при выборе пропущенного уровня. Пожалуйста, попробуйте позже.")
-
-
-async def handle_next_question(message: types.Message, state: FSMContext):
-    data = await state.get_data()
-    current_level_id = data.get('current_level_id')
-
-    async with UnitOfWork() as uow:
-        repo = Repository(uow.session)
-
-        # Получаем следующий уровень
-        next_level = await repo.get_next_level(current_level_id)
-
-        if next_level:
-            # Обновляем текущее состояние на следующий уровень
-            await state.update_data(current_level_id=next_level.id)
-            await start_level(message, state, repo, next_level)
-        else:
-            # Если уровней больше нет, переводим пользователя в состояние completed
-            await complete_quiz(message, state)
-
-
-async def start_level(message: types.Message, state: FSMContext, repo: Repository, level: Level):
-    try:
-        await state.update_data(current_question_id=None)
-        if level.is_intro:
-            await start_intro_level(message, state, repo, level)
-        elif level.is_object_recognition:
-            await start_object_recognition_level(message, state, level)
-        elif level.is_info_collection:
-            await start_info_collection_level(message, state, level)
-        else:
-            questions = await repo.get_questions_by_level(level.id)
-            if questions:
-                question = questions[0]
-                await send_message_with_optional_photo(message, question.text, question.image_file)
-                await state.update_data(current_question_id=question.id)
-                await state.set_state(QuizStates.question)
-            else:
-                await message.answer("Уровень не содержит вопросов.")
-                await state.set_state(QuizStates.completed)
-    except Exception as e:
-        logger.error(f"Error in start_level: {e}")
-        await message.answer("Произошла ошибка при старте уровня. Пожалуйста, попробуйте позже.")
-
-
-async def skip_completed_levels(message: types.Message, state: FSMContext, repo: Repository, user_id: str,
-                                current_level: Level):
-    try:
-        completed_levels = await repo.get_completed_levels(user_id)
-        next_level = await repo.get_next_level(current_level.id)
-
-        while next_level and next_level.id in completed_levels:
-            next_level = await repo.get_next_level(next_level.id)
-
-        if next_level:
-            await state.update_data(current_level_id=next_level.id)
-            await start_level(message, state, repo, next_level)
-        else:
-            await complete_quiz(message, state)
-    except Exception as e:
-        logger.error(f"Error skipping completed levels: {e}")
-        raise
+        await handle_error_answer(message, f"Error in handle_skipped_level_choice: {e}")

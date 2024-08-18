@@ -4,10 +4,11 @@ from aiogram import types
 from aiogram.fsm.context import FSMContext
 from loguru import logger
 
-from src.bot.gameplay.answer import start_info_collection_level, update_user_state
 from src.bot.fsm.state_fsm import InfoCollectionStates
+from src.bot.gameplay.answer import update_user_state
 from src.bot.states import QuizStates
 from src.bot.utils.errors import handle_error
+from src.bot.utils.levels import start_info_collection_level
 from src.database.repository import Repository
 from src.database.uow import UnitOfWork
 
@@ -65,6 +66,7 @@ async def confirm_info(message: types.Message, state: FSMContext):
             return
         async with UnitOfWork() as uow:
             repo = Repository(uow.session)
+            user = await repo.get_user_by_chat_id(str(message.chat.id))
 
             if message.text.lower() == "да":
                 await save_user_info(message, state, repo)
@@ -78,11 +80,11 @@ async def confirm_info(message: types.Message, state: FSMContext):
                     )
                 )
                 await state.set_state(QuizStates.intermediate)
-                await update_user_state(repo, state, message)
+                await update_user_state(repo, state, user.id)
             else:
                 current_level_id = (await state.get_data()).get('current_level_id')
                 level = await repo.get_level_by_id(current_level_id)
-                await start_info_collection_level(message, state, level)
+                await start_info_collection_level(message, state, level, repo, user.id)
             await uow.commit()
     except Exception as e:
         await handle_error(message, "Error in confirm_info", e)
@@ -112,5 +114,3 @@ async def validate_input(message: types.Message) -> bool:
         await message.answer("Пожалуйста, завершите ввод данных перед использованием команды.")
         return False
     return True
-
-

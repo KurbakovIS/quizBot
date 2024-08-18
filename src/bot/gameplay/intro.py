@@ -1,12 +1,13 @@
 from aiogram import types
 from aiogram.fsm.context import FSMContext
+
 from src.bot.states import QuizStates
 from src.bot.utils.errors import handle_error
 from src.bot.utils.message_actions import send_message_with_optional_photo
+from src.bot.utils.state_management import update_user_state
 from src.database import User, Level
 from src.database.repository import Repository
 from src.database.uow import UnitOfWork
-from loguru import logger
 
 
 async def continue_intro(message: types.Message, state: FSMContext):
@@ -21,7 +22,7 @@ async def continue_intro(message: types.Message, state: FSMContext):
             else:
                 await handle_no_more_levels(message, state)
 
-            await update_user_state(repo, user, state)
+            await update_user_state(repo, state, user.id)
             await uow.commit()
     except Exception as e:
         await handle_error(message, "Error in continue_intro", e)
@@ -75,11 +76,3 @@ async def handle_no_more_levels(message, state):
         reply_markup=types.ReplyKeyboardRemove()
     )
     await state.clear()
-
-
-async def update_user_state(repo: Repository, user, state: FSMContext):
-    current_state = await state.get_state()
-    if current_state:
-        await repo.update_user_state(user.id, current_state, await state.get_data())
-
-

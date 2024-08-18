@@ -2,23 +2,22 @@ from aiogram import Router, F
 from aiogram.filters import CommandStart, Command
 from aiogram.filters.state import StateFilter
 
-from src.bot.gameplay.answer import (
-    handle_answer, skip_level, return_to_skipped_levels,
-    handle_skipped_level_choice, handle_next_question
+from src.bot.fsm.state_fsm import InfoCollectionStates
+from src.bot.fsm.state_machine import (
+    collect_name, collect_company, collect_position, confirm_info
 )
+from src.bot.gameplay.answer import handle_answer, handle_next_question, return_to_skipped_levels, \
+    handle_skipped_level_choice
 from src.bot.gameplay.game import start_game
-from src.bot.handlers.handle_object_recognition import handle_object_recognition
 from src.bot.gameplay.intro import continue_intro
+from src.bot.handlers.handle_object_recognition import handle_object_recognition
 from src.bot.handlers.menu.handlers import (
     handle_info, handle_comment, handle_demo,
     handle_shop, handle_subscribe, handle_menu_start
 )
-from src.bot.fsm.state_machine import (
-    collect_name, collect_company, collect_position, confirm_info
-)
 from src.bot.start import start_bot
-from src.bot.fsm.state_fsm import InfoCollectionStates
 from src.bot.states import QuizStates
+from src.bot.utils.levels import skip_level
 
 router = Router()
 
