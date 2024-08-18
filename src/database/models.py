@@ -28,13 +28,36 @@ class User(BaseEntity):
     company: Mapped[str] = mapped_column(String, nullable=True)
     position: Mapped[str] = mapped_column(String, nullable=True)
 
+    products = relationship('UserProduct', back_populates='user')
+
+    def __repr__(self):
+        return self.username
+
+
+class UserProduct(BaseEntity):
+    __tablename__ = 'user_products'
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('users.id'))
+    product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('products.id'))
+    quantity: Mapped[int] = mapped_column(Integer, default=1)
+
+    user = relationship('User', back_populates='products')
+    product = relationship('Product', back_populates='users')
+
+    def __repr__(self):
+        return self.product
 
 class Product(BaseEntity):
     __tablename__ = 'products'
 
     name: Mapped[str] = mapped_column(String)
-    price: Mapped[float] = mapped_column(Float)
+    price: Mapped[int] = mapped_column(Float)
     quantity: Mapped[int] = mapped_column(Integer)
+
+    users = relationship('UserProduct', back_populates='product')
+
+    def __repr__(self):
+        return self.name
 
 
 class Question(BaseEntity):

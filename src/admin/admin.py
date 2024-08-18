@@ -5,7 +5,7 @@ from sqladmin.authentication import AuthenticationBackend
 from sqlalchemy.ext.asyncio import create_async_engine
 from starlette.requests import Request
 
-from src.database.models import User, Product, Question, Admin as AdminModel, Level
+from src.database.models import User, Product, Question, Admin as AdminModel, Level, UserProduct
 from src.database.repository import Repository
 from src.database.uow import UnitOfWork
 from src.utils.settings import DATABASE_URL
@@ -63,6 +63,10 @@ class AdminAdmin(ModelView, model=AdminModel):
     column_list = [AdminModel.id, AdminModel.username]
     form_columns = ["username", "password"]
 
+class UserProductAdmin(ModelView, model=UserProduct):
+    column_list = [UserProduct.quantity, UserProduct.user, UserProduct.product]
+    form_columns = ["user", "product", "quantity"]
+
 
 def create_admin_app(app: FastAPI):
     admin_authentication = AdminAuthentication(secret_key="supersecretkey")
@@ -72,4 +76,8 @@ def create_admin_app(app: FastAPI):
     admin.add_view(QuestionAdmin)
     admin.add_view(LevelAdmin)
     admin.add_view(AdminAdmin)
+    admin.add_view(UserProductAdmin)
     return admin
+
+
+

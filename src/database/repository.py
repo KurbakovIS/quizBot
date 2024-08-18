@@ -5,7 +5,8 @@ from sqlalchemy import insert, update, select, delete, exists
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.database.models import User, Question, Level, StageCompletion, UserLevel, UserState, Admin, UserSkippedLevel
+from src.database.models import User, Question, Level, StageCompletion, UserLevel, UserState, Admin, UserSkippedLevel, \
+    Product, UserProduct
 
 
 class Repository:
@@ -136,3 +137,43 @@ class Repository:
             .where(StageCompletion.user_id == user_id)
         )
         return {row for row in result.scalars().all()}
+
+    async def get_available_products(self):
+        result = await self.session.execute(select(Product).where(Product.quantity > 0))
+        return result.scalars().all()
+
+    async def purchase_product(self, user_id: uuid.UUID, product_id: uuid.UUID):
+        # Уменьшаем количество продукта на 1
+        await self.session.execute(
+            update(Product)
+            .where(Product.id == product_id)
+            .where(Product.quantity > 0)
+            .values(quantity=Product.quantity - 1)
+        )
+
+        # Проверяем, покупал ли пользователь этот товар ранее
+        result = await self.session.execute(
+            select(UserProduct).where(UserProduct.user_id == user_id, UserProduct.product_id == product_id)
+        )
+        existing_entry = result.scalar_one_or_none()
+
+        if existing_entry:
+            # Если пользователь уже покупал этот товар, увеличиваем количество
+            update_stmt = (
+                update(UserProduct)
+                .where(UserProduct.user_id == user_id)
+                .where(UserProduct.product_id == product_id)
+                .values(quantity=UserProduct.quantity + 1)
+            )
+            await self.session.execute(update_stmt)
+        else:
+            # Если пользователь покупает товар впервые, создаем новую запись
+            insert_stmt = (
+                insert(UserProduct)
+                .values(user_id=user_id, product_id=product_id, quantity=1)
+            )
+            await self.session.execute(insert_stmt)
+
+    async def get_product_by_id(self, product_id: uuid.UUID) -> Product:
+        result = await self.session.execute(select(Product).where(Product.id == product_id))
+        return result.scalar_one_or_none()

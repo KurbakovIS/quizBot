@@ -13,7 +13,7 @@ from src.bot.gameplay.intro import continue_intro
 from src.bot.handlers.handle_object_recognition import handle_object_recognition
 from src.bot.handlers.menu.handlers import (
     handle_info, handle_comment, handle_demo,
-    handle_shop, handle_subscribe, handle_menu_start
+    handle_shop, handle_subscribe, handle_menu_start, handle_purchase
 )
 from src.bot.start import start_bot
 from src.bot.states import QuizStates
@@ -91,6 +91,9 @@ def register_all_handlers(router: Router):
     router.message.register(return_to_skipped_levels, StateFilter(QuizStates.completed),
                             F.text == "Вернуться на пропущенные уровни")
     router.message.register(handle_skipped_level_choice, StateFilter(QuizStates.return_to_skipped))
+
+    # Регистрация callback_query для покупки товара
+    router.callback_query.register(handle_purchase)
 
 
 register_all_handlers(router)
