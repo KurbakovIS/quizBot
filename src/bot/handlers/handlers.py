@@ -55,7 +55,7 @@ def register_menu_handlers(router: Router):
         "subscribe": handle_subscribe,
         "start": handle_menu_start,
     }
-    state_filters = [QuizStates.intermediate, QuizStates.completed]
+    state_filters = [QuizStates.intermediate, QuizStates.completed, QuizStates.return_to_skipped]
     for command, handler in menu_commands.items():
         register_menu_command(router, command, handler, state_filters)
 
