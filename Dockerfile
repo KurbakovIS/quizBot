@@ -1,6 +1,9 @@
 # Используем официальный образ Python
 FROM python:3.11-slim
 
+# Установка необходимых зависимостей
+RUN apt-get update && apt-get install -y libgl1-mesa-glx
+
 # Создание директории для хранения данных
 RUN mkdir -p /data
 
@@ -18,4 +21,4 @@ RUN pip install poetry && poetry config virtualenvs.create false && poetry insta
 COPY . .
 
 # Указываем команду для запуска приложения
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8000"]
