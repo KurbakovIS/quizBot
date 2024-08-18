@@ -76,6 +76,7 @@ class UserLevel(BaseEntity):
 
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('users.id'), primary_key=True)
     level_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('levels.id'), primary_key=True)
+    is_skipped: Mapped[bool] = mapped_column(Boolean, default=False)
 
     __table_args__ = (
         UniqueConstraint('user_id', 'level_id', name='uq_user_levels_user_id_level_id'),

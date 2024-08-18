@@ -97,21 +97,24 @@ async def skip_level(message: types.Message, state: FSMContext, repo: Repository
             if next_level.is_intro:
                 await start_intro_level(message, state, repo, next_level)
             elif next_level.is_object_recognition:
-                await repo.add_user_level_entry(user.id, current_level_id)
+                await repo.add_user_level_entry(user.id, next_level.id)
                 await start_object_recognition_level(message, state, next_level, repo, user.id)
             elif next_level.is_info_collection:
-                await repo.add_user_level_entry(user.id, current_level_id)
+                await repo.add_user_level_entry(user.id, next_level.id)
                 await start_info_collection_level(message, state, next_level.id, repo, user.id)
             else:
-                await message.answer(
-                    "Нажмите 'Следующий вопрос' для продолжения или выберите действие из меню.",
-                    reply_markup=types.ReplyKeyboardMarkup(
-                        keyboard=[[types.KeyboardButton(text="Следующий вопрос")]],
-                        resize_keyboard=True,
-                        one_time_keyboard=True
-                    )
-                )
-                await state.set_state(QuizStates.intermediate)
+                await repo.add_user_level_entry(user.id, next_level.id)
+                questions = await repo.get_questions_by_level(next_level.id)
+                if questions:
+                    question = questions[0]
+                    await send_message_with_optional_photo(message, question.text, question.image_file)
+                    await state.update_data(current_question_id=question.id)
+                    await state.set_state(QuizStates.question)
+                    await update_user_state(repo, state, user.id)
+                else:
+                    await message.answer("Уровень не содержит вопросов.")
+                    await state.set_state(QuizStates.completed)
+                    await update_user_state(repo, state, user.id)
         else:
             # Все уровни завершены, переходим в состояние completed
             await state.update_data(quiz_completed=True)
