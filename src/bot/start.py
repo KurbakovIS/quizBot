@@ -116,7 +116,7 @@ async def restore_user_state(message: types.Message, state: FSMContext, repo: Re
     current_level_id = data.get('current_level_id')
     current_question_id = data.get('current_question_id')
 
-    if data.get('quiz_completed', False):
+    if data.get('quiz_completed', False) or current_state == QuizStates.return_to_skipped:
         await handle_quiz_completion(message, state, repo, user_state)
     elif current_state == QuizStates.object_recognition.state and current_level_id:
         await handle_object_recognition(message, repo, current_level_id)
