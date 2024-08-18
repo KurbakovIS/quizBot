@@ -17,4 +17,12 @@ RUN pip install poetry && poetry config virtualenvs.create false && poetry insta
 
 COPY . .
 
-CMD ["uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8000"]
+## Копируем статику sqladmin в доступное для FastAPI место
+#RUN mkdir -p /app/static/sqladmin && \
+#    cp -r $(python -c "import os, sqladmin; print(os.path.join(os.path.dirname(sqladmin.__file__), 'statics'))")/* /app/static/sqladmin/
+
+# Открываем порты
+EXPOSE 8000
+
+# Запуск Nginx и Uvicorn
+CMD alembic upgrade head && uvicorn src.application:app --host 0.0.0.0 --port 8000

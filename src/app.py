@@ -5,7 +5,7 @@ from fastapi import FastAPI
 
 from src.admin.admin import create_admin_app
 from src.bot.bot import start_bot
-
+from fastapi.staticfiles import StaticFiles
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -23,3 +23,5 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 create_admin_app(app)
+
+app.mount("/static", StaticFiles(packages=['sqladmin']), name="static")
