@@ -27,13 +27,13 @@ app = FastAPI(lifespan=lifespan)
 
 create_admin_app(app)
 
-app.mount("/static", StaticFiles(packages=['sqladmin']), name="static")
-
-
-@app.middleware("http")
-async def force_https(request: Request, call_next):
-    if request.url.scheme == "http":
-        url = request.url.replace(scheme="https")
-        return RedirectResponse(url)
-    response = await call_next(request)
-    return response
+# app.mount("/static", StaticFiles(packages=['sqladmin']), name="static")
+#
+#
+# @app.middleware("http")
+# async def force_https(request: Request, call_next):
+#     if request.url.scheme == "http":
+#         url = request.url.replace(scheme="https")
+#         return RedirectResponse(url)
+#     response = await call_next(request)
+#     return response

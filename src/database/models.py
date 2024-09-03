@@ -8,6 +8,7 @@ from sqlalchemy.orm import relationship, mapped_column, Mapped
 
 from src.database.custom_types import FileType
 from src.database.entity import BaseEntity
+from sqlalchemy.ext.hybrid import hybrid_property
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -20,6 +21,8 @@ class User(BaseEntity):
     first_name: Mapped[str] = mapped_column(String, nullable=True)
     last_name: Mapped[str] = mapped_column(String, nullable=True)
     current_level: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('levels.id'))
+    current_level_link = relationship('Level', back_populates='users')
+
     completed_levels = relationship('Level', secondary='user_levels', back_populates='completed_users')
     skipped_levels = relationship('Level', secondary='user_skipped_levels', back_populates='skipped_users')
     stages_completed = relationship('StageCompletion', back_populates='user')
@@ -91,6 +94,8 @@ class Level(BaseEntity):
     questions = relationship('Question', back_populates='level')
     completed_users = relationship('User', secondary='user_levels', back_populates='completed_levels')
     skipped_users = relationship('User', secondary='user_skipped_levels', back_populates='skipped_levels')
+
+    users = relationship('User', back_populates='current_level_link')
 
     def __repr__(self):
         return self.name

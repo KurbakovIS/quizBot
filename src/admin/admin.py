@@ -39,16 +39,32 @@ class AdminAuthentication(AuthenticationBackend):
 class UserAdmin(ModelView, model=User):
     name = "Игроки"
     name_plural = "Игроки"
-    column_list = [User.username, User.chat_id, User.current_level, User.first_name, User.balance,
+    column_list = [User.username, User.chat_id, User.current_level_link, User.first_name, User.balance,
                    User.company, User.position, User.admin]
-    form_columns = ["username", "chat_id", "current_level", "balance", "position", "company", "first_name", "admin"]
-
+    form_columns = ["username", "chat_id", "current_level_link", "balance", "position", "company", "first_name",
+                    "admin"]
+    column_labels = {
+        'username': 'Имя пользователя',  # Переименование колонки username
+        'chat_id': 'Чат ID',  # Переименование колонки chat_id
+        'current_level_link': 'Текущий уровень',  # Переименование колонки current_level_link
+        'first_name': 'Имя',  # Переименование колонки first_name
+        'balance': 'Баланс',  # Переименование колонки balance
+        'company': 'Компания',  # Переименование колонки company
+        'position': 'Должность',  # Переименование колонки position
+        'admin': 'Администратор'  # Переименование колонки admin
+    }
 
 class ProductAdmin(ModelView, model=Product):
     name = "Товары"
     name_plural = "Товары"
     column_list = [Product.name, Product.price, Product.quantity]
     form_columns = ["name", "price", "quantity"]
+
+    column_labels = {
+        'name': 'Название товара',  # Переименование колонки name
+        'price': 'Цена',  # Переименование колонки price
+        'quantity': 'Количество'  # Переименование колонки quantity
+    }
 
 
 class LevelAdmin(ModelView, model=Level):
@@ -60,6 +76,19 @@ class LevelAdmin(ModelView, model=Level):
     form_columns = ["name", "description", "intro_text", "image_file", "number", "reward", "is_intro",
                     "is_info_collection", 'is_object_recognition']
 
+    column_labels = {
+        'name': 'Название уровня',  # Переименование колонки name
+        'description': 'Описание',  # Переименование колонки description
+        'intro_text': 'Текст уровня',  # Переименование колонки intro_text
+        'questions': 'Вопросы',  # Переименование колонки questions
+        'image_file': 'Изображение',  # Переименование колонки image_file
+        'number': 'Номер',  # Переименование колонки number
+        'reward': 'Награда',  # Переименование колонки reward
+        'is_intro': 'Введение',  # Переименование колонки is_intro
+        'is_info_collection': 'Сбор информации',  # Переименование колонки is_info_collection
+        'is_object_recognition': 'Распознавание объектов'  # Переименование колонки is_object_recognition
+    }
+
     def scaffold_list(self, query: Query):
         return query.order_by(Level.number.desc())
 
@@ -70,6 +99,14 @@ class QuestionAdmin(ModelView, model=Question):
     column_list = [Question.level, Question.text, Question.hint, Question.correct_answer,
                    Question.image_file]
     form_columns = ["level", "text", "hint", "correct_answer", "image_file"]
+
+    column_labels = {
+        'level': 'Уровень',  # Переименование колонки level
+        'text': 'Текст вопроса',  # Переименование колонки text
+        'hint': 'Подсказка',  # Переименование колонки hint
+        'correct_answer': 'Правильный ответ',  # Переименование колонки correct_answer
+        'image_file': 'Изображение'  # Переименование колонки image_file
+    }
 
 
 class AdminAdmin(ModelView, model=AdminModel):
@@ -84,6 +121,12 @@ class UserProductAdmin(ModelView, model=UserProduct):
     name_plural = "Продукты Пользователя"
     column_list = [UserProduct.quantity, UserProduct.user, UserProduct.product]
     form_columns = ["user", "product", "quantity"]
+
+    column_labels = {
+        'user': 'Пользователь',  # Переименование колонки user
+        'product': 'Продукт',  # Переименование колонки product
+        'quantity': 'Количество'  # Переименование колонки quantity
+    }
 
 
 def create_admin_app(app: FastAPI):
