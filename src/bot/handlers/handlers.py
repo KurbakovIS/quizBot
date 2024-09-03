@@ -11,6 +11,7 @@ from src.bot.gameplay.answer import handle_answer, handle_next_question, return_
 from src.bot.gameplay.game import start_game
 from src.bot.gameplay.intro import continue_intro
 from src.bot.handlers.handle_object_recognition import handle_object_recognition
+from src.bot.handlers.menu.broadcast import handle_broadcast, handle_broadcast_message
 from src.bot.handlers.menu.handlers import (
     handle_info, handle_comment, handle_demo,
     handle_shop, handle_subscribe, handle_menu_start, handle_purchase
@@ -54,6 +55,7 @@ def register_menu_handlers(router: Router):
         "shop": handle_shop,
         "subscribe": handle_subscribe,
         "start": handle_menu_start,
+        "broadcast": handle_broadcast,
     }
     state_filters = [QuizStates.intermediate, QuizStates.completed, QuizStates.return_to_skipped]
     for command, handler in menu_commands.items():
@@ -95,5 +97,7 @@ def register_all_handlers(router: Router):
     # Регистрация callback_query для покупки товара
     router.callback_query.register(handle_purchase)
 
+    # Регистрация обработчиков для рассылки
+    router.message.register(handle_broadcast_message, StateFilter(QuizStates.waiting_for_broadcast_message))
 
 register_all_handlers(router)

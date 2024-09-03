@@ -14,6 +14,10 @@ class Repository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
+    async def get_all_users(self):
+        result = await self.session.execute(select(User))
+        return result.scalars().all()
+
     async def get_user_by_chat_id(self, chat_id: str):
         result = await self.session.execute(select(User).where(User.chat_id == chat_id))
         return result.scalar_one_or_none()

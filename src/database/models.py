@@ -30,6 +30,8 @@ class User(BaseEntity):
 
     products = relationship('UserProduct', back_populates='user')
 
+    admin: Mapped[bool] = mapped_column(Boolean, default=False)
+
     def __repr__(self):
         return self.username
 

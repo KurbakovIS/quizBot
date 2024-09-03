@@ -40,8 +40,8 @@ class UserAdmin(ModelView, model=User):
     name = "Игроки"
     name_plural = "Игроки"
     column_list = [User.username, User.chat_id, User.current_level, User.first_name, User.balance,
-                   User.company, User.position]
-    form_columns = ["username", "chat_id", "current_level", "balance", "position", "company", "first_name"]
+                   User.company, User.position, User.admin]
+    form_columns = ["username", "chat_id", "current_level", "balance", "position", "company", "first_name", "admin"]
 
 
 class ProductAdmin(ModelView, model=Product):
