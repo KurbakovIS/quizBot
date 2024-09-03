@@ -1,3 +1,4 @@
+import random
 import uuid
 
 from loguru import logger
@@ -40,6 +41,14 @@ class Repository:
     async def get_questions_by_level(self, level_id: uuid.UUID):
         result = await self.session.execute(select(Question).where(Question.level_id == level_id))
         return result.scalars().all()
+
+    async def get_random_question_by_level(self, level_id: uuid.UUID) -> Question:
+        result = await self.session.execute(select(Question).where(Question.level_id == level_id))
+        questions = result.scalars().all()
+
+        if questions:
+            return random.choice(questions)
+        return None
 
     async def get_question_by_id(self, question_id: uuid.UUID):
         result = await self.session.execute(select(Question).where(Question.id == question_id))

@@ -25,9 +25,8 @@ async def start_level(message: types.Message, state: FSMContext, repo: Repositor
         await start_info_collection_level(message, state, level.id, repo, user_id)
     else:
         await repo.add_user_level_entry(user_id, level.id)
-        questions = await repo.get_questions_by_level(level.id)
-        if questions:
-            question = questions[0]
+        question = await repo.get_random_question_by_level(level.id)
+        if question:
             await send_message_with_optional_photo(message, question.text, question.image_file)
             await state.update_data(current_question_id=question.id)
             await state.set_state(QuizStates.question)
@@ -104,9 +103,8 @@ async def skip_level(message: types.Message, state: FSMContext, repo: Repository
                 await start_info_collection_level(message, state, next_level.id, repo, user.id)
             else:
                 await repo.add_user_level_entry(user.id, next_level.id)
-                questions = await repo.get_questions_by_level(next_level.id)
-                if questions:
-                    question = questions[0]
+                question = await repo.get_random_question_by_level(next_level.id)
+                if question:
                     await send_message_with_optional_photo(message, question.text, question.image_file)
                     await state.update_data(current_question_id=question.id)
                     await state.set_state(QuizStates.question)

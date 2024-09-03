@@ -9,6 +9,7 @@ from src.database.models import User, Product, Question, Admin as AdminModel, Le
 from src.database.repository import Repository
 from src.database.uow import UnitOfWork
 from src.utils.settings import DATABASE_URL
+from sqlalchemy.orm import Query
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 engine = create_async_engine(DATABASE_URL)
@@ -36,34 +37,51 @@ class AdminAuthentication(AuthenticationBackend):
 
 
 class UserAdmin(ModelView, model=User):
-    column_list = [User.id, User.username, User.chat_id, User.current_level, User.first_name, User.balance,
+    name = "Игроки"
+    name_plural = "Игроки"
+    column_list = [User.username, User.chat_id, User.current_level, User.first_name, User.balance,
                    User.company, User.position]
     form_columns = ["username", "chat_id", "current_level", "balance", "position", "company", "first_name"]
 
 
 class ProductAdmin(ModelView, model=Product):
-    column_list = [Product.id, Product.name, Product.price, Product.quantity]
+    name = "Товары"
+    name_plural = "Товары"
+    column_list = [Product.name, Product.price, Product.quantity]
     form_columns = ["name", "price", "quantity"]
 
 
 class LevelAdmin(ModelView, model=Level):
-    column_list = [Level.id, Level.name, Level.description, Level.intro_text, Level.questions, Level.image_file,
+    name = "Уровни"
+    name_plural = "Уровни"
+    column_default_sort = (Level.number, False)
+    column_list = [Level.name, Level.description, Level.intro_text, Level.questions, Level.image_file,
                    Level.number, Level.reward, Level.is_intro, Level.is_info_collection, Level.is_object_recognition]
     form_columns = ["name", "description", "intro_text", "image_file", "number", "reward", "is_intro",
                     "is_info_collection", 'is_object_recognition']
 
+    def scaffold_list(self, query: Query):
+        return query.order_by(Level.number.desc())
+
 
 class QuestionAdmin(ModelView, model=Question):
-    column_list = [Question.id, Question.level, Question.text, Question.hint, Question.correct_answer,
+    name = "Вопросы к уровням"
+    name_plural = "Вопросы к уровням"
+    column_list = [Question.level, Question.text, Question.hint, Question.correct_answer,
                    Question.image_file]
     form_columns = ["level", "text", "hint", "correct_answer", "image_file"]
 
 
 class AdminAdmin(ModelView, model=AdminModel):
-    column_list = [AdminModel.id, AdminModel.username]
+    name = "Администраторы"
+    name_plural = "Администраторы"
+    column_list = [AdminModel.username]
     form_columns = ["username", "password"]
 
+
 class UserProductAdmin(ModelView, model=UserProduct):
+    name = "Продукты Пользователя"
+    name_plural = "Продукты Пользователя"
     column_list = [UserProduct.quantity, UserProduct.user, UserProduct.product]
     form_columns = ["user", "product", "quantity"]
 
@@ -73,11 +91,8 @@ def create_admin_app(app: FastAPI):
     admin = Admin(app, engine, authentication_backend=admin_authentication)
     admin.add_view(UserAdmin)
     admin.add_view(ProductAdmin)
+    admin.add_view(UserProductAdmin)
     admin.add_view(QuestionAdmin)
     admin.add_view(LevelAdmin)
     admin.add_view(AdminAdmin)
-    admin.add_view(UserProductAdmin)
     return admin
-
-
-
