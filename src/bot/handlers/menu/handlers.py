@@ -112,6 +112,9 @@ async def handle_info(message: types.Message):
 async def handle_subscribe(message: types.Message):
     try:
         await message.answer(
-            "Чтобы подписаться на Test IT, пожалуйста, посетите следующую ссылку: [ссылка на подписку]")
+             "Подпишитесь на наши группы Test IT:\n"
+            "1. Test IT TMS: https://t.me/testit_tms\n"
+            "2. Community Test IT: https://t.me/community_test_it"
+        )
     except Exception as e:
         await handle_error(message, e)
